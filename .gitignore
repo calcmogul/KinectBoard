@@ -1,0 +1,5 @@
+*.rgb
+*.dll
+*.o
+*.exe
+Makefile

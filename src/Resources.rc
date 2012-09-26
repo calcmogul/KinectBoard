@@ -1,0 +1,25 @@
+mainIcon ICON "OpenKinect.ico"
+
+1 VERSIONINFO
+FILEVERSION     1,0,0,0
+PRODUCTVERSION  1,0,0,0
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904E4"
+    BEGIN
+      VALUE "CompanyName", "Alan Fisher and Tyler Veness"
+      VALUE "FileVersion", "0,1,0,0"
+      VALUE "InternalName", "KinectBoard"
+      VALUE "LegalCopyright", "None"
+      VALUE "OriginalFilename", "KinectBoard.exe"
+      VALUE "ProductName", "KinectBoard"
+      VALUE "ProductVersion", "1.0a"
+    END
+  END
+
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x409, 1252
+  END
+END
