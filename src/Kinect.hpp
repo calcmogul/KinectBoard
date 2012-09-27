@@ -5,6 +5,8 @@
 //Author: Tyler Veness
 //=============================================================================
 
+// TODO Reliable way to detect if Kinect is still connected and functioning
+
 #ifndef KINECT_HPP
 #define KINECT_HPP
 
@@ -17,13 +19,14 @@ public:
 	Kinect();
 	virtual ~Kinect();
 
-	/* gets new image from the Kinect to process
-	 * @return was new image received
-	 */
+	// retrieves data from Kinect for new image
 	void fillImage();
 
-	// returns whether or not a new image was filled and therefore available to process
+	// returns true if a new image was filled and is therefore available to process
 	bool hasNewImage();
+
+	// returns true if there is a Kinect connected to the USB port and available to use
+	bool isConnected();
 
 	typedef enum {
 		Empty = 0,
@@ -34,11 +37,10 @@ public:
 protected:
 	FILE* rgbImage;
 	struct knt_inst_t* kinect;
-	struct nstream_t* kntrgb;
-	struct nstream_t* kntdepth;
 
 private:
 	ImageStatus hasImage;
+	bool connected;
 };
 
 #endif // KINECT_HPP

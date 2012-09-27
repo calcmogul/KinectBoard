@@ -26,7 +26,8 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
 INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
 	const char* mainClassName = "KinectBoard";
 
-	HICON appIcon = LoadIcon( Instance , "mainIcon" );
+	HICON kinectON = LoadIcon( Instance , "kinect1-ON" );
+	HICON kinectOFF = LoadIcon( Instance , "kinect2-OFF" );
 
 	// Define a class for our main window
 	WNDCLASS WindowClass;
@@ -35,7 +36,7 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
 	WindowClass.cbClsExtra    = 0;
 	WindowClass.cbWndExtra    = 0;
 	WindowClass.hInstance     = Instance;
-	WindowClass.hIcon         = appIcon;
+	WindowClass.hIcon         = kinectON;
 	WindowClass.hCursor       = NULL;
 	WindowClass.hbrBackground = reinterpret_cast<HBRUSH>( COLOR_BACKGROUND );
 	WindowClass.lpszMenuName  = NULL;
@@ -43,7 +44,7 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
 	RegisterClass(&WindowClass);
 
 	// Calibration window
-	HWND Window = CreateWindow( mainClassName , "KinectBoard" , WS_VISIBLE | WS_THICKFRAME | WS_POPUP | WS_MAXIMIZE , 0 , 0 , GetSystemMetrics(SM_CXSCREEN) * 2 , GetSystemMetrics(SM_CYSCREEN) * 2 , NULL , NULL , Instance , NULL );
+	HWND Window = CreateWindow( mainClassName , "KinectBoard" , WS_VISIBLE | WS_POPUP , 0 , 0 , GetSystemMetrics(SM_CXSCREEN) , GetSystemMetrics(SM_CYSCREEN) , NULL , NULL , Instance , NULL );
 
 	mainWin.create( Window );
 	mainWin.setMouseCursorVisible( false );
@@ -97,11 +98,11 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
 	mainWin.display();
 	/* =================================================== */
 
-	Sleep( 100 );
-
-	while ( projectorKinect.hasNewImage() != Kinect::ImageStatus::Full ) {
+	if ( projectorKinect.hasNewImage() != Kinect::ImageStatus::Full ) {
 		projectorKinect.fillImage();
 	}
+
+	Sleep( 1000 );
 
 	// TODO process Kinect image to find location of Kinect in 3D space
 
@@ -114,6 +115,7 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
 	mainWin.create( Window );
 	/* =================================================== */
 
+	bool kinectConnected = false;
 	while ( mainWin.isOpen() ) {
 		if ( PeekMessage( &Message , NULL , 0 , 0 , PM_REMOVE ) ) {
 			// If a message was waiting in the message queue, process it
@@ -124,6 +126,29 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
 			while ( mainWin.pollEvent( event ) ) {
 				if ( event.type == sf::Event::Closed )
 					mainWin.close();
+			}
+
+			// changes icon to red or green to signify if Kinect is ready or not
+			/*if ( kinectConnected == false && projectorKinect.isConnected() ) { // if wasn't connected but is now
+				SendMessage( Window , WM_SETICON , ICON_SMALL , reinterpret_cast<LPARAM>(kinectON) );
+				SendMessage( Window , WM_SETICON , ICON_BIG , reinterpret_cast<LPARAM>(kinectON) );
+
+				kinectConnected = true;
+			}
+			else if ( kinectConnected == true && !projectorKinect.isConnected() ) { // else if was connected but isn't now
+				SendMessage( Window , WM_SETICON , ICON_SMALL , reinterpret_cast<LPARAM>(kinectOFF) );
+				SendMessage( Window , WM_SETICON , ICON_BIG , reinterpret_cast<LPARAM>(kinectOFF) );
+
+				kinectConnected = false;
+			}*/
+
+			if ( projectorKinect.isConnected() ) { // if wasn't connected but is now
+				SendMessage( Window , WM_SETICON , ICON_SMALL , reinterpret_cast<LPARAM>(kinectON) );
+				SendMessage( Window , WM_SETICON , ICON_BIG , reinterpret_cast<LPARAM>(kinectON) );
+			}
+			else { // else if was connected but isn't now
+				SendMessage( Window , WM_SETICON , ICON_SMALL , reinterpret_cast<LPARAM>(kinectOFF) );
+				SendMessage( Window , WM_SETICON , ICON_BIG , reinterpret_cast<LPARAM>(kinectOFF) );
 			}
 
 			mainWin.clear( sf::Color( 40 , 40 , 40 ) );

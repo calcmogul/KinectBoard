@@ -6,55 +6,61 @@
 //=============================================================================
 
 #include <cstdio>
-#include <iostream>
 #include "Kinect.hpp"
 
 Kinect::Kinect() {
 	rgbImage = fopen( "rgbImage.rgb" , "w+b" );
+	connected = false; // may be false if something in initialization fails later
 
 	// Initialize Kinect
 	kinect = knt_init();
-	if ( kinect == NULL )
-		exit( 1 );
 
-	kntrgb = kinect->rgb;
-	kntdepth = kinect->depth;
-
-	/* start the rgb image stream going */
-	if ( kntrgb->startstream( kntrgb ) != 0 )
-		exit( 1 );
+	// start the rgb image stream
+	if ( kinect != NULL ) {
+		kinect->rgb->startstream( kinect->rgb );
+	}
 
 	hasImage = Empty;
 }
 
 Kinect::~Kinect() {
-	knt_destroy( kinect );
+	if ( kinect != NULL ) {
+		knt_destroy( kinect );
+	}
 	fclose( rgbImage );
 }
 
 void Kinect::fillImage() {
-	if ( kntrgb->state == NSTREAM_UP ) {
-		if ( hasImage == Empty )
-			hasImage = Filling;
+	if ( kinect != NULL ) {
+		if ( kinect->rgb->state == NSTREAM_UP ) {
+			if ( hasImage == Empty ) {
+				hasImage = Filling;
+			}
 
-		fseek( rgbImage , 0 , SEEK_SET );
+			fseek( rgbImage , 0 , SEEK_SET );
 
-		pthread_mutex_lock( &kntrgb->mutex );
-		fwrite( kntrgb->buf , kntrgb->bufsize , 1 , rgbImage );
-		pthread_mutex_unlock( &kntrgb->mutex );
+			pthread_mutex_lock( &kinect->rgb->mutex );
+			fwrite( kinect->rgb->buf , kinect->rgb->bufsize , 1 , rgbImage );
+			pthread_mutex_unlock( &kinect->rgb->mutex );
 
-		fflush( rgbImage );
-	}
-	else { // stream finished
-		if( hasImage == Filling )
-			hasImage = Full;
+			fflush( rgbImage );
+		}
+		else { // stream finished
+			if( hasImage == Filling ) {
+				hasImage = Full;
+			}
 
-		// Restart the Kinect stream
-		kntrgb->startstream( kntrgb );
-		kntdepth->startstream( kntdepth );
+			// Restart the Kinect stream
+			kinect->rgb->startstream( kinect->rgb );
+			kinect->depth->startstream( kinect->depth );
+		}
 	}
 }
 
 bool Kinect::hasNewImage() {
 	return hasImage == Full;
+}
+
+bool Kinect::isConnected() {
+	return connected;
 }
