@@ -23,7 +23,7 @@ bool CLOSE_THREADS = false;
 
 LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LParam );
 
-void drawTestPattern( sf::RenderWindow& targetWin );
+void drawTestPattern( sf::RenderWindow& targetWin , const sf::Color& outlineColor );
 
 INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
 	const char* mainClassName = "KinectBoard";
@@ -58,66 +58,21 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
 
 	Kinect projectorKinect;
 
-	/* ===== Create and draw the calibration graphic ===== */
-	// Construct pixel data
-	sf::Image testImage;
-	testImage.create( 40 , 40 , sf::Color( 0 , 0 , 0 ) );
-
-	// Change top-left block to white
-	for ( unsigned int yPos = 0 ; yPos < 20 ; yPos++ ) {
-		for ( unsigned int xPos = 20 ; xPos < 40 ; xPos++ )
-			testImage.setPixel( xPos , yPos , sf::Color( 255 , 255 , 255 ) );
-	}
-
-	// Change bottom-right block to white
-	for ( unsigned int yPos = 20 ; yPos < 40 ; yPos++ ) {
-		for ( unsigned int xPos = 0 ; xPos < 20 ; xPos++ )
-			testImage.setPixel( xPos , yPos , sf::Color( 255 , 255 , 255 ) );
-	}
-
-	// Prepare the test pattern for drawing
-	sf::Texture testTexture;
-	testTexture.loadFromImage( testImage );
-	testTexture.setRepeated( true );
-
-	sf::Sprite calibrationSprite( testTexture );
-	calibrationSprite.setTextureRect( sf::IntRect( 0 , 0 , mainWin.getSize().x , mainWin.getSize().y ) );
-
-	// Create red border for window
-	sf::RectangleShape border( sf::Vector2f( mainWin.getSize().x - 40.f , mainWin.getSize().y - 40.f ) );
-	border.setFillColor( sf::Color( 0 , 0 , 0 , 0 ) );
-	border.setOutlineThickness( 20 );
-	border.setOutlineColor( sf::Color( 0 , 255 , 0 ) );
-
-	// Set graphics positions before drawing them
-	calibrationSprite.setPosition( 20.f , 20.f );
-	border.setPosition( 20.f , 20.f );
-
-	// Draw graphics to window
-	mainWin.clear( sf::Color( 0 , 0 , 0 ) );
-	mainWin.draw( calibrationSprite );
-	mainWin.draw( border );
-	mainWin.display();
-	/* =================================================== */
+	drawTestPattern( mainWin , sf::Color( 0 , 255 , 0 ) );
 
 	if ( projectorKinect.hasNewImage() != Kinect::ImageStatus::Full ) {
 		projectorKinect.fillImage();
 	}
 
-	Sleep( 1000 );
+	Sleep( 500 );
 
-	border.setOutlineColor( sf::Color( 255 , 0 , 0 ) );
-
-	mainWin.clear( sf::Color( 0 , 0 , 0 ) );
-	mainWin.draw( calibrationSprite );
-	mainWin.draw( border );
-	mainWin.display();
+	drawTestPattern( mainWin , sf::Color( 255 , 0 , 0 ) );
 
 	if ( projectorKinect.hasNewImage() != Kinect::ImageStatus::Full ) {
 		projectorKinect.fillImage();
 	}
 
-	Sleep( 1000 );
+	Sleep( 500 );
 
 	// TODO process Kinect image to find location of Kinect in 3D space
 
@@ -215,7 +170,45 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
 	return 0;
 }
 
-void drawTestPattern( sf::RenderWindow& targetWin ) {
-	targetWin.clear( sf::Color( 0 , 0 , 0 ) );
+void drawTestPattern( sf::RenderWindow& targetWin , const sf::Color& outlineColor ) {
+	/* ===== Create and draw the calibration graphic ===== */
+	// Construct pixel data
+	static sf::Image testImage;
+	testImage.create( 40 , 40 , sf::Color( 0 , 0 , 0 ) );
 
+	// Change top-left block to white
+	for ( unsigned int yPos = 0 ; yPos < 20 ; yPos++ ) {
+		for ( unsigned int xPos = 20 ; xPos < 40 ; xPos++ )
+			testImage.setPixel( xPos , yPos , sf::Color( 255 , 255 , 255 ) );
+	}
+
+	// Change bottom-right block to white
+	for ( unsigned int yPos = 20 ; yPos < 40 ; yPos++ ) {
+		for ( unsigned int xPos = 0 ; xPos < 20 ; xPos++ )
+			testImage.setPixel( xPos , yPos , sf::Color( 255 , 255 , 255 ) );
+	}
+
+	// Prepare the test pattern for drawing
+	static sf::Texture testTexture;
+	testTexture.loadFromImage( testImage );
+	testTexture.setRepeated( true );
+
+	static sf::Sprite calibrationSprite( testTexture );
+	calibrationSprite.setTextureRect( sf::IntRect( 0 , 0 , mainWin.getSize().x , mainWin.getSize().y ) );
+
+	// Create red border for window
+	static sf::RectangleShape border( sf::Vector2f( mainWin.getSize().x - 40.f , mainWin.getSize().y - 40.f ) );
+	border.setFillColor( sf::Color( 0 , 0 , 0 , 0 ) );
+	border.setOutlineThickness( 20 );
+	border.setOutlineColor( outlineColor );
+
+	// Set graphics positions before drawing them
+	calibrationSprite.setPosition( 20.f , 20.f );
+	border.setPosition( 20.f , 20.f );
+
+	// Draw graphics to window
+	targetWin.clear( sf::Color( 0 , 0 , 0 ) );
+	targetWin.draw( calibrationSprite );
+	targetWin.draw( border );
+	targetWin.display();
 }
