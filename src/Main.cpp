@@ -23,6 +23,8 @@ bool CLOSE_THREADS = false;
 
 LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LParam );
 
+void drawTestPattern( sf::RenderWindow& targetWin );
+
 INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
 	const char* mainClassName = "KinectBoard";
 
@@ -97,6 +99,19 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
 	mainWin.draw( border );
 	mainWin.display();
 	/* =================================================== */
+
+	if ( projectorKinect.hasNewImage() != Kinect::ImageStatus::Full ) {
+		projectorKinect.fillImage();
+	}
+
+	Sleep( 1000 );
+
+	border.setOutlineColor( sf::Color( 255 , 0 , 0 ) );
+
+	mainWin.clear( sf::Color( 0 , 0 , 0 ) );
+	mainWin.draw( calibrationSprite );
+	mainWin.draw( border );
+	mainWin.display();
 
 	if ( projectorKinect.hasNewImage() != Kinect::ImageStatus::Full ) {
 		projectorKinect.fillImage();
@@ -198,4 +213,9 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
 	}
 
 	return 0;
+}
+
+void drawTestPattern( sf::RenderWindow& targetWin ) {
+	targetWin.clear( sf::Color( 0 , 0 , 0 ) );
+
 }
