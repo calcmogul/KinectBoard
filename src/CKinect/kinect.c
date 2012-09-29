@@ -30,8 +30,6 @@ struct nstream_t *knt_depth_nstm;
 void knt_rgb_cb(freenect_device * dev, void *rgb, uint32_t timestamp)
 {
     struct nstream_t *nstm = knt_rgb_nstm;
-    struct timeval curtime;
-    struct timezone thistimezone;
 
     /* got RGB callback */
     /* printf("got RGB callback\n"); */
@@ -81,8 +79,6 @@ void knt_rgb_cb(freenect_device * dev, void *rgb, uint32_t timestamp)
 void knt_depth_cb(freenect_device * dev, void *rgb, uint32_t timestamp)
 {
     struct nstream_t *nstm = knt_depth_nstm;
-    struct timeval curtime;
-    struct timezone thistimezone;
 
     /* got depth callback */
 
@@ -252,8 +248,6 @@ void *knt_threadmain(void *in)
     int ndevs;
     freenect_context *f_ctx;
     freenect_device *f_dev;
-    struct timeval curtime;
-    struct timezone thistimezone;
 
     /* initialize libfreenect */
     error = freenect_init(&f_ctx, NULL);
@@ -285,7 +279,7 @@ void *knt_threadmain(void *in)
     error =
         freenect_set_video_mode(f_dev,
                                 freenect_find_video_mode
-                                (FREENECT_RESOLUTION_MEDIUM,
+                                (FREENECT_RESOLUTION_HIGH,
                                  FREENECT_VIDEO_RGB));
     if (error != 0) {
         fprintf(stderr, "failed to set video mode\n");
@@ -298,7 +292,7 @@ void *knt_threadmain(void *in)
     error =
         freenect_set_depth_mode(f_dev,
                                 freenect_find_depth_mode
-                                (FREENECT_RESOLUTION_MEDIUM,
+                                (FREENECT_RESOLUTION_HIGH,
                                  FREENECT_DEPTH_11BIT));
     if (error != 0) {
         fprintf(stderr, "failed to set depth mode\n");

@@ -9,58 +9,62 @@
 #include "Kinect.hpp"
 
 Kinect::Kinect() {
-	rgbImage = fopen( "rgbImage.rgb" , "w+b" );
-	connected = false; // may be false if something in initialization fails later
+	m_rgbImage = fopen( "rgbImage.rgb" , "w+b" );
+	m_connected = false; // may be false if something in initialization fails later
 
 	// Initialize Kinect
-	kinect = knt_init();
+	m_kinect = knt_init();
 
 	// start the rgb image stream
-	if ( kinect != NULL ) {
-		kinect->rgb->startstream( kinect->rgb );
+	if ( m_kinect != NULL ) {
+		m_kinect->rgb->startstream( m_kinect->rgb );
 	}
 
-	hasImage = Empty;
+	m_hasImage = Empty;
 }
 
 Kinect::~Kinect() {
-	if ( kinect != NULL ) {
-		knt_destroy( kinect );
+	if ( m_kinect != NULL ) {
+		knt_destroy( m_kinect );
 	}
-	fclose( rgbImage );
+	fclose( m_rgbImage );
 }
 
 void Kinect::fillImage() {
-	if ( kinect != NULL ) {
-		if ( kinect->rgb->state == NSTREAM_UP ) {
-			if ( hasImage == Empty ) {
-				hasImage = Filling;
+	if ( m_kinect != NULL ) {
+		if ( m_kinect->rgb->state == NSTREAM_UP ) {
+			if ( m_hasImage == Empty ) {
+				m_hasImage = Filling;
 			}
 
-			fseek( rgbImage , 0 , SEEK_SET );
+			fseek( m_rgbImage , 0 , SEEK_SET );
 
-			pthread_mutex_lock( &kinect->rgb->mutex );
-			fwrite( kinect->rgb->buf , kinect->rgb->bufsize , 1 , rgbImage );
-			pthread_mutex_unlock( &kinect->rgb->mutex );
+			pthread_mutex_lock( &m_kinect->rgb->mutex );
+			fwrite( m_kinect->rgb->buf , m_kinect->rgb->bufsize , 1 , m_rgbImage );
+			pthread_mutex_unlock( &m_kinect->rgb->mutex );
 
-			fflush( rgbImage );
+			fflush( m_rgbImage );
 		}
 		else { // stream finished
-			if( hasImage == Filling ) {
-				hasImage = Full;
+			if( m_hasImage == Filling ) {
+				m_hasImage = Full;
 			}
 
 			// Restart the Kinect stream
-			kinect->rgb->startstream( kinect->rgb );
-			kinect->depth->startstream( kinect->depth );
+			m_kinect->rgb->startstream( m_kinect->rgb );
+			m_kinect->depth->startstream( m_kinect->depth );
 		}
 	}
 }
 
 bool Kinect::hasNewImage() {
-	return hasImage == Full;
+	return m_hasImage == Full;
 }
 
 bool Kinect::isConnected() {
-	return connected;
+	pthread_mutex_lock( &m_kinect->threadrunning_mutex );
+	m_connected = m_kinect->threadrunning;
+	pthread_mutex_unlock( &m_kinect->threadrunning_mutex );
+
+	return m_connected;
 }

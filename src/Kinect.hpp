@@ -35,12 +35,12 @@ public:
 	} ImageStatus;
 
 protected:
-	FILE* rgbImage;
-	struct knt_inst_t* kinect;
+	FILE* m_rgbImage;
+	struct knt_inst_t* m_kinect;
 
 private:
-	ImageStatus hasImage;
-	bool connected;
+	ImageStatus m_hasImage;
+	bool m_connected;
 };
 
 #endif // KINECT_HPP

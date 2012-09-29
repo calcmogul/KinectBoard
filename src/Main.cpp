@@ -11,14 +11,20 @@
 
 #include <SFML/Window/Event.hpp>
 
-#define _WIN32_WINNT 0x0501
+#define _WIN32_WINNT 0x0601
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+
+#define IDC_MAIN_BUTTON 101
 
 #include "WinAPIWrapper.h"
 #include "Kinect.hpp"
 
+// global because the drawing is set up to be continuous in CALLBACK OnEvent
 sf::RenderWindow mainWin;
+sf::RenderWindow testWin;
+Kinect projectorKinect;
+
 bool CLOSE_THREADS = false;
 
 LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LParam );
@@ -31,8 +37,12 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
 	HICON kinectON = LoadIcon( Instance , "kinect1-ON" );
 	HICON kinectOFF = LoadIcon( Instance , "kinect2-OFF" );
 
+	HBRUSH mainBrush = CreateSolidBrush( RGB( 160 , 160 , 160 ) );
+
 	// Define a class for our main window
-	WNDCLASS WindowClass;
+	WNDCLASSEX WindowClass;
+	ZeroMemory( &WindowClass , sizeof(WNDCLASSEX) );
+	WindowClass.cbSize        = sizeof(WNDCLASSEX);
 	WindowClass.style         = 0;
 	WindowClass.lpfnWndProc   = &OnEvent;
 	WindowClass.cbClsExtra    = 0;
@@ -40,25 +50,23 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
 	WindowClass.hInstance     = Instance;
 	WindowClass.hIcon         = kinectON;
 	WindowClass.hCursor       = NULL;
-	WindowClass.hbrBackground = reinterpret_cast<HBRUSH>( COLOR_BACKGROUND );
+	WindowClass.hbrBackground = mainBrush;
 	WindowClass.lpszMenuName  = NULL;
 	WindowClass.lpszClassName = mainClassName;
-	RegisterClass(&WindowClass);
+	RegisterClassEx(&WindowClass);
 
 	// Calibration window
-	HWND Window = CreateWindow( mainClassName , "KinectBoard" , WS_VISIBLE | WS_POPUP , 0 , 0 , GetSystemMetrics(SM_CXSCREEN) , GetSystemMetrics(SM_CYSCREEN) , NULL , NULL , Instance , NULL );
+	HWND testWindow = CreateWindow( mainClassName , "KinectBoard" , WS_POPUP , 0 , 0 , GetSystemMetrics(SM_CXSCREEN) , GetSystemMetrics(SM_CYSCREEN) , NULL , NULL , Instance , NULL );
 
-	mainWin.create( Window );
-	mainWin.setMouseCursorVisible( false );
+	testWin.create( testWindow );
+	testWin.setMouseCursorVisible( false );
 
 	sf::Event event;
 
 	MSG Message;
 	INPUT input = { 0 };
 
-	Kinect projectorKinect;
-
-	drawTestPattern( mainWin , sf::Color( 0 , 255 , 0 ) );
+	drawTestPattern( testWin , sf::Color( 255 , 0 , 0 ) );
 
 	if ( projectorKinect.hasNewImage() != Kinect::ImageStatus::Full ) {
 		projectorKinect.fillImage();
@@ -66,26 +74,34 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
 
 	Sleep( 500 );
 
-	drawTestPattern( mainWin , sf::Color( 255 , 0 , 0 ) );
+	drawTestPattern( testWin , sf::Color( 0 , 255 , 0 ) );
 
 	if ( projectorKinect.hasNewImage() != Kinect::ImageStatus::Full ) {
 		projectorKinect.fillImage();
 	}
 
 	Sleep( 500 );
+
+	ShowWindow( testWindow , SW_HIDE );
 
 	// TODO process Kinect image to find location of Kinect in 3D space
 
 	/* ===== Make a new window that isn't fullscreen ===== */
-	mainWin.close();
-	DestroyWindow( Window );
-
 	// Create a new window to be used for the lifetime of the application
-	Window = CreateWindow( mainClassName , "KinectBoard" , WS_SYSMENU | WS_VISIBLE | WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_THICKFRAME , ( GetSystemMetrics(SM_CXSCREEN) - 800 ) / 2 , ( GetSystemMetrics(SM_CYSCREEN) - 600 ) / 2 , 800 , 600 , NULL , NULL , Instance , NULL );
-	mainWin.create( Window );
+	HWND mainWindow = CreateWindow( mainClassName ,
+			"KinectBoard" ,
+			WS_SYSMENU | WS_CAPTION | WS_VISIBLE | WS_MINIMIZEBOX | WS_MINIMIZE | WS_CLIPCHILDREN ,
+			( GetSystemMetrics(SM_CXSCREEN) - 200 ) / 2 ,
+			( GetSystemMetrics(SM_CYSCREEN) - 150 ) / 2 ,
+			230 ,
+			150 ,
+			NULL ,
+			NULL ,
+			Instance ,
+			NULL );
+	mainWin.create( mainWindow );
 	/* =================================================== */
 
-	bool kinectConnected = false;
 	while ( mainWin.isOpen() ) {
 		if ( PeekMessage( &Message , NULL , 0 , 0 , PM_REMOVE ) ) {
 			// If a message was waiting in the message queue, process it
@@ -94,34 +110,22 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
 		}
 		else {
 			while ( mainWin.pollEvent( event ) ) {
-				if ( event.type == sf::Event::Closed )
+				if ( event.type == sf::Event::Closed ) {
 					mainWin.close();
+				}
 			}
 
-			// changes icon to red or green to signify if Kinect is ready or not
-			/*if ( kinectConnected == false && projectorKinect.isConnected() ) { // if wasn't connected but is now
-				SendMessage( Window , WM_SETICON , ICON_SMALL , reinterpret_cast<LPARAM>(kinectON) );
-				SendMessage( Window , WM_SETICON , ICON_BIG , reinterpret_cast<LPARAM>(kinectON) );
-
-				kinectConnected = true;
+			// change color of icon to green or red if Kinect is connected or disconnected respectively
+			if ( projectorKinect.isConnected() ) {
+				SendMessage( mainWindow , WM_SETICON , ICON_SMALL , reinterpret_cast<LPARAM>(kinectON) );
+				SendMessage( mainWindow , WM_SETICON , ICON_BIG , reinterpret_cast<LPARAM>(kinectON) );
 			}
-			else if ( kinectConnected == true && !projectorKinect.isConnected() ) { // else if was connected but isn't now
-				SendMessage( Window , WM_SETICON , ICON_SMALL , reinterpret_cast<LPARAM>(kinectOFF) );
-				SendMessage( Window , WM_SETICON , ICON_BIG , reinterpret_cast<LPARAM>(kinectOFF) );
-
-				kinectConnected = false;
-			}*/
-
-			if ( projectorKinect.isConnected() ) { // if wasn't connected but is now
-				SendMessage( Window , WM_SETICON , ICON_SMALL , reinterpret_cast<LPARAM>(kinectON) );
-				SendMessage( Window , WM_SETICON , ICON_BIG , reinterpret_cast<LPARAM>(kinectON) );
-			}
-			else { // else if was connected but isn't now
-				SendMessage( Window , WM_SETICON , ICON_SMALL , reinterpret_cast<LPARAM>(kinectOFF) );
-				SendMessage( Window , WM_SETICON , ICON_BIG , reinterpret_cast<LPARAM>(kinectOFF) );
+			else {
+				SendMessage( mainWindow , WM_SETICON , ICON_SMALL , reinterpret_cast<LPARAM>(kinectOFF) );
+				SendMessage( mainWindow , WM_SETICON , ICON_BIG , reinterpret_cast<LPARAM>(kinectOFF) );
 			}
 
-			mainWin.clear( sf::Color( 40 , 40 , 40 ) );
+			//mainWin.clear( sf::Color( 40 , 40 , 40 ) );
 
 			// TODO get images from Kinect, process them, and move mouse and press mouse buttons
 
@@ -130,14 +134,16 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
 
 			//leftClick( input ); // left click for testing
 
-			mainWin.display();
+			//mainWin.display();
 
 			Sleep( 50 );
 		}
 	}
 
-	// Clean up window
-	DestroyWindow( Window );
+	// Clean up windows
+	testWin.close();
+	DestroyWindow( testWindow );
+	DestroyWindow( mainWindow );
 	UnregisterClass( mainClassName , Instance );
 
 	return EXIT_SUCCESS;
@@ -145,23 +151,70 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
 
 LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LParam ) {
 	switch ( Message ) {
-	case WM_SIZE: {
-		mainWin.clear( sf::Color( 40 , 40 , 40 ) );
-		mainWin.display();
+	case WM_CREATE: {
+		HGDIOBJ hfDefault = GetStockObject( DEFAULT_GUI_FONT );
+
+		HWND hWndButton = CreateWindow(
+				"BUTTON",
+				"Recalibrate",
+				WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+				9,
+				88,
+				100,
+				24,
+				Handle,
+				reinterpret_cast<HMENU>( IDC_MAIN_BUTTON ),
+				GetModuleHandle( NULL ),
+				NULL);
+
+		SendMessage(hWndButton,
+					WM_SETFONT,
+					reinterpret_cast<WPARAM>( hfDefault ),
+					MAKELPARAM( FALSE , 0 ) );
 
 		break;
 	}
-	case WM_WINDOWPOSCHANGED: {
-		mainWin.clear( sf::Color( 40 , 40 , 40 ) );
-		mainWin.display();
 
+	case WM_COMMAND: {
+		switch( LOWORD(WParam) ) {
+			case IDC_MAIN_BUTTON: {
+				drawTestPattern( testWin , sf::Color( 255 , 0 , 0 ) );
+
+				if ( projectorKinect.hasNewImage() != Kinect::ImageStatus::Full ) {
+					projectorKinect.fillImage();
+				}
+
+				Sleep( 500 );
+
+				drawTestPattern( testWin , sf::Color( 0 , 255 , 0 ) );
+
+				if ( projectorKinect.hasNewImage() != Kinect::ImageStatus::Full ) {
+					projectorKinect.fillImage();
+				}
+
+				Sleep( 500 );
+
+				ShowWindow( testWin.getSystemHandle() , SW_HIDE );
+
+				// TODO process Kinect image to find location of Kinect in 3D space
+			}
+			break;
+		}
+		break;
+
+		case WM_DESTROY: {
+			PostQuitMessage(0);
+			return 0;
+		}
 		break;
 	}
+
 	// Quit when we close the main window
 	case WM_CLOSE: {
 		PostQuitMessage(0);
 		break;
 	}
+
 	default: {
 		return DefWindowProc(Handle, Message, WParam, LParam);
 	}
@@ -171,6 +224,9 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
 }
 
 void drawTestPattern( sf::RenderWindow& targetWin , const sf::Color& outlineColor ) {
+	// keep mouse from covering up pattern
+	targetWin.setMouseCursorVisible( false );
+
 	/* ===== Create and draw the calibration graphic ===== */
 	// Construct pixel data
 	static sf::Image testImage;
@@ -194,10 +250,10 @@ void drawTestPattern( sf::RenderWindow& targetWin , const sf::Color& outlineColo
 	testTexture.setRepeated( true );
 
 	static sf::Sprite calibrationSprite( testTexture );
-	calibrationSprite.setTextureRect( sf::IntRect( 0 , 0 , mainWin.getSize().x , mainWin.getSize().y ) );
+	calibrationSprite.setTextureRect( sf::IntRect( 0 , 0 , targetWin.getSize().x , targetWin.getSize().y ) );
 
 	// Create red border for window
-	static sf::RectangleShape border( sf::Vector2f( mainWin.getSize().x - 40.f , mainWin.getSize().y - 40.f ) );
+	static sf::RectangleShape border( sf::Vector2f( targetWin.getSize().x - 40.f , targetWin.getSize().y - 40.f ) );
 	border.setFillColor( sf::Color( 0 , 0 , 0 , 0 ) );
 	border.setOutlineThickness( 20 );
 	border.setOutlineColor( outlineColor );
@@ -205,6 +261,9 @@ void drawTestPattern( sf::RenderWindow& targetWin , const sf::Color& outlineColo
 	// Set graphics positions before drawing them
 	calibrationSprite.setPosition( 20.f , 20.f );
 	border.setPosition( 20.f , 20.f );
+
+	// Make window visible before drawing to it
+	ShowWindow( targetWin.getSystemHandle() , SW_MAXIMIZE );
 
 	// Draw graphics to window
 	targetWin.clear( sf::Color( 0 , 0 , 0 ) );
