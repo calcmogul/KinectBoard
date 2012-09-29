@@ -9,13 +9,11 @@
 #include <SFML/Graphics/Texture.hpp>
 #include <SFML/Graphics/RectangleShape.hpp>
 
-#include <SFML/Window/Event.hpp>
-
 #define _WIN32_WINNT 0x0601
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-#define IDC_MAIN_BUTTON 101
+#define IDC_CALIBRATE_BUTTON 101
 
 #include "WinAPIWrapper.h"
 #include "Kinect.hpp"
@@ -24,8 +22,6 @@
 sf::RenderWindow mainWin;
 sf::RenderWindow testWin;
 Kinect projectorKinect;
-
-bool CLOSE_THREADS = false;
 
 LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LParam );
 
@@ -59,32 +55,9 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
 	HWND testWindow = CreateWindow( mainClassName , "KinectBoard" , WS_POPUP , 0 , 0 , GetSystemMetrics(SM_CXSCREEN) , GetSystemMetrics(SM_CYSCREEN) , NULL , NULL , Instance , NULL );
 
 	testWin.create( testWindow );
-	testWin.setMouseCursorVisible( false );
-
-	sf::Event event;
 
 	MSG Message;
 	INPUT input = { 0 };
-
-	drawTestPattern( testWin , sf::Color( 255 , 0 , 0 ) );
-
-	if ( projectorKinect.hasNewImage() != Kinect::ImageStatus::Full ) {
-		projectorKinect.fillImage();
-	}
-
-	Sleep( 500 );
-
-	drawTestPattern( testWin , sf::Color( 0 , 255 , 0 ) );
-
-	if ( projectorKinect.hasNewImage() != Kinect::ImageStatus::Full ) {
-		projectorKinect.fillImage();
-	}
-
-	Sleep( 500 );
-
-	ShowWindow( testWindow , SW_HIDE );
-
-	// TODO process Kinect image to find location of Kinect in 3D space
 
 	/* ===== Make a new window that isn't fullscreen ===== */
 	// Create a new window to be used for the lifetime of the application
@@ -102,6 +75,9 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
 	mainWin.create( mainWindow );
 	/* =================================================== */
 
+	SendMessage( mainWindow , WM_COMMAND , IDC_CALIBRATE_BUTTON , 0 ); // Calibrate Kinect
+
+	bool lastConnection = true; // prevents window icon from being set every loop
 	while ( mainWin.isOpen() ) {
 		if ( PeekMessage( &Message , NULL , 0 , 0 , PM_REMOVE ) ) {
 			// If a message was waiting in the message queue, process it
@@ -109,23 +85,19 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
 			DispatchMessage( &Message );
 		}
 		else {
-			while ( mainWin.pollEvent( event ) ) {
-				if ( event.type == sf::Event::Closed ) {
-					mainWin.close();
-				}
-			}
-
 			// change color of icon to green or red if Kinect is connected or disconnected respectively
-			if ( projectorKinect.isConnected() ) {
+			if ( projectorKinect.isConnected() && lastConnection == false ) { // if is connected and wasn't before
 				SendMessage( mainWindow , WM_SETICON , ICON_SMALL , reinterpret_cast<LPARAM>(kinectON) );
 				SendMessage( mainWindow , WM_SETICON , ICON_BIG , reinterpret_cast<LPARAM>(kinectON) );
+
+				lastConnection = true;
 			}
-			else {
+			else if ( !projectorKinect.isConnected() && lastConnection == true ) { // if isn't connected and was before
 				SendMessage( mainWindow , WM_SETICON , ICON_SMALL , reinterpret_cast<LPARAM>(kinectOFF) );
 				SendMessage( mainWindow , WM_SETICON , ICON_BIG , reinterpret_cast<LPARAM>(kinectOFF) );
-			}
 
-			//mainWin.clear( sf::Color( 40 , 40 , 40 ) );
+				lastConnection = false;
+			}
 
 			// TODO get images from Kinect, process them, and move mouse and press mouse buttons
 
@@ -133,8 +105,6 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
 			//moveMouse( input , 5 , 0 ); // move mouse cursor 5 pixels right
 
 			//leftClick( input ); // left click for testing
-
-			//mainWin.display();
 
 			Sleep( 50 );
 		}
@@ -163,7 +133,7 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
 				100,
 				24,
 				Handle,
-				reinterpret_cast<HMENU>( IDC_MAIN_BUTTON ),
+				reinterpret_cast<HMENU>( IDC_CALIBRATE_BUTTON ),
 				GetModuleHandle( NULL ),
 				NULL);
 
@@ -177,26 +147,25 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
 
 	case WM_COMMAND: {
 		switch( LOWORD(WParam) ) {
-			case IDC_MAIN_BUTTON: {
-				drawTestPattern( testWin , sf::Color( 255 , 0 , 0 ) );
+			case IDC_CALIBRATE_BUTTON: {
+				// if there is no Kinect connected, don't bother trying to retrieve images
+				if ( projectorKinect.isConnected() ) {
+					drawTestPattern( testWin , sf::Color( 255 , 0 , 0 ) );
 
-				if ( projectorKinect.hasNewImage() != Kinect::ImageStatus::Full ) {
-					projectorKinect.fillImage();
+					while ( projectorKinect.hasNewImage() != Kinect::ImageStatus::Full ) {
+						projectorKinect.fillImage();
+					}
+
+					drawTestPattern( testWin , sf::Color( 0 , 255 , 0 ) );
+
+					while ( projectorKinect.hasNewImage() != Kinect::ImageStatus::Full ) {
+						projectorKinect.fillImage();
+					}
+
+					// TODO process Kinect image to find location of Kinect in 3D space
 				}
-
-				Sleep( 500 );
-
-				drawTestPattern( testWin , sf::Color( 0 , 255 , 0 ) );
-
-				if ( projectorKinect.hasNewImage() != Kinect::ImageStatus::Full ) {
-					projectorKinect.fillImage();
-				}
-
-				Sleep( 500 );
 
 				ShowWindow( testWin.getSystemHandle() , SW_HIDE );
-
-				// TODO process Kinect image to find location of Kinect in 3D space
 			}
 			break;
 		}
@@ -211,6 +180,7 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
 
 	// Quit when we close the main window
 	case WM_CLOSE: {
+		mainWin.close();
 		PostQuitMessage(0);
 		break;
 	}
