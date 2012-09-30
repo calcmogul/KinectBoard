@@ -52,7 +52,7 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
 	RegisterClassEx(&WindowClass);
 
 	// Calibration window
-	HWND testWindow = CreateWindow( mainClassName , "KinectBoard" , WS_POPUP , 0 , 0 , GetSystemMetrics(SM_CXSCREEN) , GetSystemMetrics(SM_CYSCREEN) , NULL , NULL , Instance , NULL );
+	HWND testWindow = CreateWindow( mainClassName , "KinectBoard" , WS_POPUP | WS_MINIMIZE , 0 , 0 , GetSystemMetrics(SM_CXSCREEN) , GetSystemMetrics(SM_CYSCREEN) , NULL , NULL , Instance , NULL );
 
 	testWin.create( testWindow );
 
