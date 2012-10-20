@@ -46,7 +46,7 @@ struct nstream_t {
     /* Calls */
     /* start stream */
     int (*startstream) (struct nstream_t *);
-    /* stop stream */
+    /* stop strea */
     int (*stopstream) (struct nstream_t *);
 
     /* Handle for internal use (implemented differently in different

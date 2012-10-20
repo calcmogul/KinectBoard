@@ -11,6 +11,8 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <string.h>
+#include <assert.h>
+#include <sched.h>
 #include <sys/time.h>
 
 /* global stuff for the callbacks */
@@ -70,7 +72,7 @@ void knt_rgb_cb(freenect_device * dev, void *rgb, uint32_t timestamp)
  * Callback called by libfreenect each time the buffer is filled with a
  * new depth frame
  *
- * dev: filled with a pointer the the freenect device
+ * dev: filled with a pointer to the freenect device
  * rgb: pointer to the depth buffer
  * timestamp: POSIX timestamp of the buffer
  *
@@ -134,6 +136,7 @@ int knt_startstream(struct nstream_t *stream)
         inst->threadrunning = 1;
         pthread_create(&inst->thread, NULL, knt_threadmain, inst);
         pthread_detach(inst->thread);
+
         pthread_cond_wait(&inst->threadcond, &inst->threadrunning_mutex);
         if (inst->threadrunning == 0) {
             /* the kinect failed to initialize */
@@ -279,7 +282,7 @@ void *knt_threadmain(void *in)
     error =
         freenect_set_video_mode(f_dev,
                                 freenect_find_video_mode
-                                (FREENECT_RESOLUTION_HIGH,
+                                (FREENECT_RESOLUTION_MEDIUM,
                                  FREENECT_VIDEO_RGB));
     if (error != 0) {
         fprintf(stderr, "failed to set video mode\n");
@@ -292,7 +295,7 @@ void *knt_threadmain(void *in)
     error =
         freenect_set_depth_mode(f_dev,
                                 freenect_find_depth_mode
-                                (FREENECT_RESOLUTION_HIGH,
+                                (FREENECT_RESOLUTION_MEDIUM,
                                  FREENECT_DEPTH_11BIT));
     if (error != 0) {
         fprintf(stderr, "failed to set depth mode\n");

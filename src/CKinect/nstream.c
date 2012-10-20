@@ -15,7 +15,7 @@
  * Initialize a new nstream_t struct (usually used on the sender side) and
  * it's elements and buffers.
  *
- * Many of it's arguments are various parameters that correspond with members
+ * Many of it's arguments are various parameters that coorispond with members
  * of the struct nstream_t.
  *
  * A pointer to the new nstream_t is returned. 
@@ -23,9 +23,9 @@
  * width: The width of the image in pixels.
  * height: The height of the image in pixels.
  * depth: The number of bytes per pixel. (ie, 3 for a bit depth of 24)
- * startstream: The function called by the receiving end of the stream
+ * startstream: The function called by the recieving end of the stream
  *              to request that the stream be started.
- * stopstream: The function called by the receiving end of the stream
+ * stopstream: The function called by the recieving end of the stream
  *             to request that the stream be stopped.
  * ih: An internal handle to be used by the sending side of the stream
  *     for whatever purpose it would like. Normally, ih would contain

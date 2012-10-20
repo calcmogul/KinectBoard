@@ -10,7 +10,9 @@
 #ifndef KINECT_HPP
 #define KINECT_HPP
 
-#include "CKinect/kinect.h"
+extern "C" {
+	#include "CKinect/kinect.h"
+}
 
 struct _iobuf; // prototype of FILE struct from cstdio
 

@@ -9,7 +9,7 @@
 #include "Kinect.hpp"
 
 Kinect::Kinect() {
-	m_rgbImage = fopen( "rgbImage.rgb" , "w+b" );
+	m_rgbImage = std::fopen( "rgbImage.rgb" , "w+b" );
 	m_connected = false; // may be false if something in initialization fails later
 
 	// Initialize Kinect
@@ -27,7 +27,7 @@ Kinect::~Kinect() {
 	if ( m_kinect != NULL ) {
 		knt_destroy( m_kinect );
 	}
-	fclose( m_rgbImage );
+	std::fclose( m_rgbImage );
 }
 
 void Kinect::fillImage() {
@@ -37,13 +37,13 @@ void Kinect::fillImage() {
 				m_hasImage = Filling;
 			}
 
-			fseek( m_rgbImage , 0 , SEEK_SET );
+			std::fseek( m_rgbImage , 0 , SEEK_SET );
 
 			pthread_mutex_lock( &m_kinect->rgb->mutex );
-			fwrite( m_kinect->rgb->buf , m_kinect->rgb->bufsize , 1 , m_rgbImage );
+			std::fwrite( m_kinect->rgb->buf , m_kinect->rgb->bufsize , 1 , m_rgbImage );
 			pthread_mutex_unlock( &m_kinect->rgb->mutex );
 
-			fflush( m_rgbImage );
+			std::fflush( m_rgbImage );
 		}
 		else { // stream finished
 			if( m_hasImage == Filling ) {
