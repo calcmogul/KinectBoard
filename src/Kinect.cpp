@@ -8,8 +8,10 @@
 #include <cstdio>
 #include "Kinect.hpp"
 
+#include <opencv2/core/core_c.h>
+#include <opencv2/imgproc/imgproc.hpp>
+
 Kinect::Kinect() {
-	m_rgbImage = std::fopen( "rgbImage.rgb" , "w+b" );
 	m_connected = false; // may be false if something in initialization fails later
 
 	// Initialize Kinect
@@ -17,48 +19,29 @@ Kinect::Kinect() {
 
 	// start the rgb image stream
 	if ( m_kinect != NULL ) {
+		m_kinect->rgb->newframe = newFrame;
+
 		m_kinect->rgb->startstream( m_kinect->rgb );
 	}
 
-	m_hasImage = Empty;
+	std::printf( "Kinect initialized\n" );
+
+	CvSize imageSize = { 320 , 240 };
+	m_cvImage = cvCreateImageHeader( imageSize , 8 , 3 );
+	m_cvDestImage = cvCreateImageHeader( imageSize , 8 , 3 );
+
+	std::printf( "Stream started\n" );
 }
 
 Kinect::~Kinect() {
 	if ( m_kinect != NULL ) {
 		knt_destroy( m_kinect );
 	}
-	std::fclose( m_rgbImage );
 }
 
 void Kinect::fillImage() {
-	if ( m_kinect != NULL ) {
-		if ( m_kinect->rgb->state == NSTREAM_UP ) {
-			if ( m_hasImage == Empty ) {
-				m_hasImage = Filling;
-			}
-
-			std::fseek( m_rgbImage , 0 , SEEK_SET );
-
-			pthread_mutex_lock( &m_kinect->rgb->mutex );
-			std::fwrite( m_kinect->rgb->buf , m_kinect->rgb->bufsize , 1 , m_rgbImage );
-			pthread_mutex_unlock( &m_kinect->rgb->mutex );
-
-			std::fflush( m_rgbImage );
-		}
-		else { // stream finished
-			if( m_hasImage == Filling ) {
-				m_hasImage = Full;
-			}
-
-			// Restart the Kinect stream
-			m_kinect->rgb->startstream( m_kinect->rgb );
-			m_kinect->depth->startstream( m_kinect->depth );
-		}
-	}
-}
-
-bool Kinect::hasNewImage() {
-	return m_hasImage == Full;
+    // Restart the Kinect stream
+    m_kinect->rgb->startstream( m_kinect->rgb );
 }
 
 bool Kinect::isConnected() {
@@ -67,4 +50,25 @@ bool Kinect::isConnected() {
 	pthread_mutex_unlock( &m_kinect->threadrunning_mutex );
 
 	return m_connected;
+}
+
+void Kinect::processImage( bool waitForImg ) {
+    // Split RGB image into it's different channels
+    cv::split( m_cvImage , m_imageChannelsIN );
+
+    // Filter out dimmer parts of each image (test image should be brightest)
+    for ( unsigned char i = 0 ; i < 3 ; i++ ) {
+        cv::threshold( m_imageChannelsIN[i] , m_imageChannelsOUT[i] , 120 , 255 , CV_THRESH_BINARY );
+    }
+
+    // Multiply the three channels together to get a combined rectangle
+    m_imageChannelsOUT[0].mul( m_imageChannelsOUT[1] );
+    m_imageChannelsOUT[0].mul( m_imageChannelsOUT[2] );
+}
+
+void Kinect::newFrame( struct nstream_t* streamObject , void* classObject ) {
+	std::printf( "Got new frame\n" );
+	Kinect* kinectPtr = static_cast<Kinect*>( classObject );
+
+	kinectPtr->m_cvImage->imageData = kinectPtr->m_kinect->rgb->buf;
 }

@@ -1,6 +1,10 @@
 #ifndef _KINECT_H
 #define _KINECT_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "nstream.h"
 #include <libfreenect.h>
 #include <pthread.h>
@@ -25,5 +29,9 @@ void knt_threadmain_abort(struct knt_inst_t *inst);
 void *knt_threadmain(void *in);
 struct knt_inst_t *knt_init();
 void knt_destroy(struct knt_inst_t *inst);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

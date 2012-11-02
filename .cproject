@@ -44,6 +44,8 @@
 									<listOptionValue builtIn="false" value="freenect"/>
 									<listOptionValue builtIn="false" value="pthread"/>
 									<listOptionValue builtIn="false" value="usb"/>
+									<listOptionValue builtIn="false" value="opencv_core242.dll"/>
+									<listOptionValue builtIn="false" value="opencv_imgproc242.dll"/>
 								</option>
 								<option id="gnu.cpp.link.option.flags.1866210063" name="Linker flags" superClass="gnu.cpp.link.option.flags" value="" valueType="string"/>
 								<option id="gnu.cpp.link.option.other.1630348352" name="Other options (-Xlinker [option])" superClass="gnu.cpp.link.option.other"/>
