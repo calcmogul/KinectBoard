@@ -111,6 +111,8 @@
 									<listOptionValue builtIn="false" value="freenect"/>
 									<listOptionValue builtIn="false" value="pthread"/>
 									<listOptionValue builtIn="false" value="usb"/>
+									<listOptionValue builtIn="false" value="opencv_core242.dll"/>
+									<listOptionValue builtIn="false" value="opencv_imgproc242.dll"/>
 								</option>
 								<option id="gnu.cpp.link.option.flags.2114925099" name="Linker flags" superClass="gnu.cpp.link.option.flags" value="" valueType="string"/>
 								<option id="gnu.cpp.link.option.strip.569884146" name="Omit all symbol information (-s)" superClass="gnu.cpp.link.option.strip" value="true" valueType="boolean"/>

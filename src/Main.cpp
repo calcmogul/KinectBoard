@@ -16,7 +16,7 @@
 typedef struct tagINPUT INPUT, *PINPUT;
 
 enum {
-    IDC_CALIBRATE_BUTTON = 101
+    IDC_RECALIBRATE_BUTTON = 101
 };
 
 #include "WinAPIWrapper.h"
@@ -56,7 +56,7 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     RegisterClassEx(&WindowClass);
 
     // Calibration window
-    HWND testWindow = CreateWindow( mainClassName , "KinectBoard" , WS_POPUP | WS_MINIMIZE , 0 , 0 , GetSystemMetrics(SM_CXSCREEN) , GetSystemMetrics(SM_CYSCREEN) , NULL , NULL , Instance , NULL );
+    HWND testWindow = CreateWindowEx( 0 , mainClassName , "KinectBoard" , WS_POPUP | WS_MINIMIZE , 0 , 0 , GetSystemMetrics(SM_CXSCREEN) , GetSystemMetrics(SM_CYSCREEN) , NULL , NULL , Instance , NULL );
 
     testWin.create( testWindow );
 
@@ -64,14 +64,20 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     INPUT input = { 0 };
 
     /* ===== Make a new window that isn't fullscreen ===== */
+    RECT winSize = { 0 , 0 , 320 , 240 }; // set the size, but not the position
+    AdjustWindowRect(
+            &winSize ,
+            WS_SYSMENU | WS_CAPTION | WS_VISIBLE | WS_MINIMIZEBOX | WS_MINIMIZE | WS_CLIPCHILDREN ,
+            FALSE ); // adjust the size
+
     // Create a new window to be used for the lifetime of the application
     HWND mainWindow = CreateWindow( mainClassName ,
             "KinectBoard" ,
             WS_SYSMENU | WS_CAPTION | WS_VISIBLE | WS_MINIMIZEBOX | WS_MINIMIZE | WS_CLIPCHILDREN ,
             ( GetSystemMetrics(SM_CXSCREEN) - 200 ) / 2 ,
             ( GetSystemMetrics(SM_CYSCREEN) - 150 ) / 2 ,
-            230 ,
-            150 ,
+            winSize.right - winSize.left , // 320
+            winSize.bottom - winSize.top , // 240
             NULL ,
             NULL ,
             Instance ,
@@ -79,7 +85,7 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     mainWin.create( mainWindow );
     /* =================================================== */
 
-    SendMessage( mainWindow , WM_COMMAND , IDC_CALIBRATE_BUTTON , 0 ); // Calibrate Kinect
+    SendMessage( mainWindow , WM_COMMAND , IDC_RECALIBRATE_BUTTON , 0 ); // Calibrate Kinect
 
     bool lastConnection = true; // prevents window icon from being set every loop
     while ( mainWin.isOpen() ) {
@@ -102,6 +108,9 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
 
                 lastConnection = false;
             }
+
+            projectorKinect.processImage( Kinect::Red );
+            projectorKinect.display( mainWindow , 0 , 0 );
 
             // TODO get images from Kinect, process them, and move mouse and press mouse buttons
 
@@ -133,11 +142,11 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
                 "Recalibrate",
                 WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
                 9,
-                88,
+                240 - 9 - 24,
                 100,
                 24,
                 Handle,
-                reinterpret_cast<HMENU>( IDC_CALIBRATE_BUTTON ),
+                reinterpret_cast<HMENU>( IDC_RECALIBRATE_BUTTON ),
                 GetModuleHandle( NULL ),
                 NULL);
 
@@ -151,26 +160,27 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
 
     case WM_COMMAND: {
         switch( LOWORD(WParam) ) {
-            case IDC_CALIBRATE_BUTTON: {
+            case IDC_RECALIBRATE_BUTTON: {
                 // if there is no Kinect connected, don't bother trying to retrieve images
                 if ( projectorKinect.isConnected() ) {
                     drawTestPattern( testWin , sf::Color( 255 , 0 , 0 ) );
                     Sleep( 100 ); // give Kinect time to get image w/ test pattern
-                    projectorKinect.processImage( true );
+                    projectorKinect.processImage( Kinect::Red );
 
                     drawTestPattern( testWin , sf::Color( 0 , 255 , 0 ) );
                     Sleep( 100 ); // give Kinect time to get image w/ test pattern
-                    projectorKinect.processImage( true );
+                    projectorKinect.processImage( Kinect::Green );
 
                     drawTestPattern( testWin , sf::Color( 0 , 0 , 255 ) );
                     Sleep( 100 ); // give Kinect time to get image w/ test pattern
-                    projectorKinect.processImage( true );
+                    projectorKinect.processImage( Kinect::Blue );
+
+                    projectorKinect.combineImages();
 
                     // TODO process Kinect image to find location of Kinect in 3D space
-
                 }
 
-                ShowWindow( testWin.getSystemHandle() , SW_HIDE );
+                ShowWindow( testWin.getSystemHandle() , SW_MINIMIZE | SW_HIDE );
             }
             break;
         }
@@ -180,6 +190,16 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
             PostQuitMessage(0);
             return 0;
         }
+        break;
+    }
+
+    case WM_SIZE: {
+        projectorKinect.display( Handle , 0 , 0 );
+        break;
+    }
+
+    case WM_WINDOWPOSCHANGED: {
+        projectorKinect.display( Handle , 0 , 0 );
         break;
     }
 

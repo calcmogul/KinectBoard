@@ -12,38 +12,93 @@
 
 #include "CKinect/kinect.h"
 
-#include <opencv2/core/core.hpp>
+#include <SFML/System/Mutex.hpp>
+
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0601
+#endif
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+
+typedef struct _IplImage IplImage;
 
 class Kinect {
 public:
-	Kinect();
-	virtual ~Kinect();
+    enum ProcColor {
+        Red = 0,
+        Green = 1,
+        Blue = 2
+    };
 
-	// Retrieves data from Kinect for new image
-	void fillImage();
+    Kinect();
+    virtual ~Kinect();
 
-	// Returns true if there is a Kinect connected to the USB port and available to use
-	bool isConnected();
+    // Starts image stream from Kinect
+    void startStream();
 
-	// Waits for the next image to be received and processed before continuing
-	// "waitForImg" will make this call wait for a new image if true
-	void processImage( bool waitForImg );
+    /* Returns true if there is a Kinect connected to the USB port and
+     * available to use
+     */
+    bool isConnected();
+
+    /* Processes the image stored in the internal buffer
+     * colorWanted determines what color to filter
+     */
+    void processImage( ProcColor colorWanted );
+
+    /* Combines the red, green, and blue processed images with bitwise and
+     * Stores the result in m_cvImage
+     */
+    void combineImages();
+
+    /* Displays the most recently received image in the given window at the
+     * given coordinates
+     */
+    void display( HWND window , int x , int y );
 
 protected:
-	struct knt_inst_t* m_kinect;
+    struct knt_inst_t* m_kinect;
 
-	// OpenCV variables
-	IplImage* m_cvImage;
-	IplImage* m_cvDestImage;
+    HBITMAP m_displayImage;
 
-	cv::Mat m_imageChannelsIN[3];
-	cv::Mat m_imageChannelsOUT[3];
+    // OpenCV variables
+    IplImage* m_cvImage;
+
+    // Holds components of red calibration image
+    IplImage* m_red1;
+    IplImage* m_green1;
+    IplImage* m_blue1;
+
+    // Holds components of green calibration image
+    IplImage* m_red2;
+    IplImage* m_green2;
+    IplImage* m_blue2;
+
+    // Holds components of blue calibration image
+    IplImage* m_red3;
+    IplImage* m_green3;
+    IplImage* m_blue3;
+
+    // Used as temporary storage when bitwise-and'ing channels together
+    IplImage* m_channelAnd1;
+    IplImage* m_channelAnd2;
+
+    // Used as temporary storage when bitwise-and'ing entire images together
+    IplImage* m_imageAnd1;
+    IplImage* m_imageAnd2;
+
+    // Calibration image storage
+    IplImage* m_redCalib;
+    IplImage* m_greenCalib;
+    IplImage* m_blueCalib;
 
 private:
-	bool m_connected;
+    bool m_connected;
+    sf::Mutex m_imageMutex;
+    sf::Mutex m_displayMutex;
 
-	// Called when a new image is received (swaps the image buffer)
-	static void newFrame( struct nstream_t* streamObject , void* classObject );
+    // Called when a new image is received (swaps the image buffer)
+    static void newFrame( struct nstream_t* streamObject , void* classObject );
 };
 
 #endif // KINECT_HPP
