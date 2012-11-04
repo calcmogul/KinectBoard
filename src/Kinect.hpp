@@ -49,7 +49,7 @@ public:
     /* Combines the red, green, and blue processed images with bitwise and
      * Stores the result in m_cvImage
      */
-    void combineImages();
+    void combineProcessedImages();
 
     /* Displays the most recently received image in the given window at the
      * given coordinates

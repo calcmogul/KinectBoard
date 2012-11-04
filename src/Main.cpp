@@ -4,6 +4,10 @@
 //Author: Tyler Veness
 //=============================================================================
 
+/*
+ * TODO Add support for multiple monitors
+ */
+
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/Graphics/Sprite.hpp>
 #include <SFML/Graphics/Texture.hpp>
@@ -28,6 +32,13 @@ sf::RenderWindow testWin;
 Kinect projectorKinect;
 
 LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LParam );
+
+BOOL CALLBACK MonitorEnumProc(
+    HMONITOR hMonitor,
+    HDC hdcMonitor,
+    LPRECT lprcMonitor,
+    LPARAM dwData
+);
 
 void drawTestPattern( sf::RenderWindow& targetWin , const sf::Color& outlineColor );
 
@@ -56,7 +67,7 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     RegisterClassEx(&WindowClass);
 
     // Calibration window
-    HWND testWindow = CreateWindowEx( 0 , mainClassName , "KinectBoard" , WS_POPUP | WS_MINIMIZE , 0 , 0 , GetSystemMetrics(SM_CXSCREEN) , GetSystemMetrics(SM_CYSCREEN) , NULL , NULL , Instance , NULL );
+    HWND testWindow = CreateWindowEx( 0 , mainClassName , "KinectBoard" , WS_POPUP | WS_MINIMIZE | WS_HIDE , 0 , 0 , GetSystemMetrics(SM_CXSCREEN) , GetSystemMetrics(SM_CYSCREEN) , NULL , NULL , Instance , NULL );
 
     testWin.create( testWindow );
 
@@ -175,7 +186,7 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
                     Sleep( 100 ); // give Kinect time to get image w/ test pattern
                     projectorKinect.processImage( Kinect::Blue );
 
-                    projectorKinect.combineImages();
+                    projectorKinect.combineProcessedImages();
 
                     // TODO process Kinect image to find location of Kinect in 3D space
                 }
@@ -216,6 +227,15 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
     }
 
     return 0;
+}
+
+BOOL CALLBACK MonitorEnumProc(
+    HMONITOR hMonitor,
+    HDC hdcMonitor,
+    LPRECT lprcMonitor,
+    LPARAM dwData
+) {
+    return FALSE;
 }
 
 void drawTestPattern( sf::RenderWindow& targetWin , const sf::Color& outlineColor ) {

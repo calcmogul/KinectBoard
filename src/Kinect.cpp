@@ -151,7 +151,7 @@ void Kinect::processImage( ProcColor colorWanted ) {
     }
 }
 
-void Kinect::combineImages() {
+void Kinect::combineProcessedImages() {
     cvAnd( m_redCalib , m_greenCalib , m_imageAnd1 , NULL );
     cvAnd( m_imageAnd1 , m_blueCalib , m_imageAnd2 , NULL );
 
