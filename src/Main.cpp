@@ -199,12 +199,6 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
             break;
         }
         break;
-
-        case WM_DESTROY: {
-            PostQuitMessage( 0 );
-            break;
-        }
-        break;
     }
 
     case WM_SIZE: {
@@ -214,6 +208,11 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
 
     case WM_WINDOWPOSCHANGED: {
         projectorKinect.display( Handle , 0 , 0 );
+        break;
+    }
+
+    case WM_DESTROY: {
+        PostQuitMessage( 0 );
         break;
     }
 
