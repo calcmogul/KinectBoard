@@ -171,11 +171,6 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
 
 LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LParam ) {
     switch ( Message ) {
-    case WM_CREATE: {
-
-        break;
-    }
-
     case WM_COMMAND: {
         switch( LOWORD(WParam) ) {
             case IDC_RECALIBRATE_BUTTON: {
