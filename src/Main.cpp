@@ -27,7 +27,6 @@ enum {
 #include "Kinect.hpp"
 
 // global because the drawing is set up to be continuous in CALLBACK OnEvent
-sf::RenderWindow mainWin;
 sf::RenderWindow testWin;
 Kinect projectorKinect;
 
@@ -67,7 +66,7 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     RegisterClassEx(&WindowClass);
 
     // Calibration window
-    HWND testWindow = CreateWindowEx( 0 , mainClassName , "KinectBoard" , WS_POPUP | WS_MINIMIZE | WS_HIDE , 0 , 0 , GetSystemMetrics(SM_CXSCREEN) , GetSystemMetrics(SM_CYSCREEN) , NULL , NULL , Instance , NULL );
+    HWND testWindow = CreateWindowEx( 0 , mainClassName , "KinectBoard" , WS_POPUP | WS_MINIMIZE , 0 , 0 , GetSystemMetrics(SM_CXSCREEN) , GetSystemMetrics(SM_CYSCREEN) , NULL , NULL , Instance , NULL );
 
     testWin.create( testWindow );
 
@@ -78,13 +77,13 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     RECT winSize = { 0 , 0 , 320 , 240 }; // set the size, but not the position
     AdjustWindowRect(
             &winSize ,
-            WS_SYSMENU | WS_CAPTION | WS_VISIBLE | WS_MINIMIZEBOX | WS_MINIMIZE | WS_CLIPCHILDREN ,
+            WS_SYSMENU | WS_CAPTION | WS_VISIBLE | WS_MINIMIZEBOX | WS_CLIPCHILDREN ,
             FALSE ); // adjust the size
 
     // Create a new window to be used for the lifetime of the application
     HWND mainWindow = CreateWindow( mainClassName ,
             "KinectBoard" ,
-            WS_SYSMENU | WS_CAPTION | WS_VISIBLE | WS_MINIMIZEBOX | WS_MINIMIZE | WS_CLIPCHILDREN ,
+            WS_SYSMENU | WS_CAPTION | WS_VISIBLE | WS_MINIMIZEBOX | WS_CLIPCHILDREN ,
             ( GetSystemMetrics(SM_CXSCREEN) - 200 ) / 2 ,
             ( GetSystemMetrics(SM_CYSCREEN) - 150 ) / 2 ,
             winSize.right - winSize.left , // 320
@@ -93,13 +92,40 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
             NULL ,
             Instance ,
             NULL );
-    mainWin.create( mainWindow );
     /* =================================================== */
+
+    HGDIOBJ hfDefault = GetStockObject( DEFAULT_GUI_FONT );
+
+    HWND hWndButton = CreateWindowEx( 0,
+            "BUTTON",
+            "Recalibrate",
+            WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+            9,
+            240 - 9 - 24,
+            100,
+            24,
+            mainWindow,
+            reinterpret_cast<HMENU>( IDC_RECALIBRATE_BUTTON ),
+            GetModuleHandle( NULL ),
+            NULL);
+
+    SendMessage(hWndButton,
+            WM_SETFONT,
+            reinterpret_cast<WPARAM>( hfDefault ),
+            MAKELPARAM( FALSE , 0 ) );
 
     SendMessage( mainWindow , WM_COMMAND , IDC_RECALIBRATE_BUTTON , 0 ); // Calibrate Kinect
 
     bool lastConnection = true; // prevents window icon from being set every loop
-    while ( mainWin.isOpen() ) {
+
+    while ( GetMessage(&Message, NULL, 0, 0) > 0 ) {
+        TranslateMessage( &Message );
+        DispatchMessage(&Message);
+    }
+
+    return (int) Message.wParam;
+
+    while ( GetMessage( &Message , NULL , 0 , 0 ) > 0 ) {
         if ( PeekMessage( &Message , NULL , 0 , 0 , PM_REMOVE ) ) {
             // If a message was waiting in the message queue, process it
             TranslateMessage( &Message );
@@ -136,8 +162,8 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
 
     // Clean up windows
     testWin.close();
-    DestroyWindow( testWindow );
-    DestroyWindow( mainWindow );
+    //DestroyWindow( testWindow );
+    //DestroyWindow( mainWindow );
     UnregisterClass( mainClassName , Instance );
 
     return EXIT_SUCCESS;
@@ -146,25 +172,6 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
 LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LParam ) {
     switch ( Message ) {
     case WM_CREATE: {
-        HGDIOBJ hfDefault = GetStockObject( DEFAULT_GUI_FONT );
-
-        HWND hWndButton = CreateWindow(
-                "BUTTON",
-                "Recalibrate",
-                WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-                9,
-                240 - 9 - 24,
-                100,
-                24,
-                Handle,
-                reinterpret_cast<HMENU>( IDC_RECALIBRATE_BUTTON ),
-                GetModuleHandle( NULL ),
-                NULL);
-
-        SendMessage(hWndButton,
-                    WM_SETFONT,
-                    reinterpret_cast<WPARAM>( hfDefault ),
-                    MAKELPARAM( FALSE , 0 ) );
 
         break;
     }
@@ -198,8 +205,8 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
         break;
 
         case WM_DESTROY: {
-            PostQuitMessage(0);
-            return 0;
+            PostQuitMessage( 0 );
+            break;
         }
         break;
     }
@@ -214,15 +221,8 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
         break;
     }
 
-    // Quit when we close the main window
-    case WM_CLOSE: {
-        mainWin.close();
-        PostQuitMessage(0);
-        break;
-    }
-
     default: {
-        return DefWindowProc(Handle, Message, WParam, LParam);
+        return DefWindowProc( Handle , Message , WParam , LParam );
     }
     }
 
