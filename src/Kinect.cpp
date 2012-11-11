@@ -102,62 +102,59 @@ bool Kinect::isConnected() {
 }
 
 void Kinect::processImage( ProcColor colorWanted ) {
-    // Split RGB image into its different channels
-    sf::Image testImage;
-    testImage.loadFromFile( "Test.png" );
+    if ( isConnected() ) {
+        // Split image into individual channels
+        m_imageMutex.lock();
+        cvSplit( m_cvImage , m_red1 , m_green1 , m_blue1 , NULL );
+        m_imageMutex.unlock();
 
-    char* pxlBuf = static_cast<char*>( std::malloc( testImage.getSize().x * testImage.getSize().y * 4 ) );
-    std::memcpy( pxlBuf , testImage.getPixelsPtr() , testImage.getSize().x * testImage.getSize().y * 4 );
+        // Filter out all but color requested
+        if ( colorWanted == Red ) {
+            cvThreshold( m_red1 , m_red1 , 200 , 255 , CV_THRESH_BINARY );
+        }
+        else {
+            cvThreshold( m_red1 , m_red1 , 55 , 255 , CV_THRESH_BINARY_INV );
+        }
 
-    m_imageMutex.lock();
-    m_cvImage->imageData = pxlBuf; // TODO Remove me after testing is done
-    cvSplit( m_cvImage , m_red1 , m_green1 , m_blue1 , NULL );
-    m_imageMutex.unlock();
+        if ( colorWanted == Green ) {
+            cvThreshold( m_green1 , m_green1 , 200 , 255 , CV_THRESH_BINARY );
+        }
+        else {
+            cvThreshold( m_green1 , m_green1 , 55 , 255 , CV_THRESH_BINARY_INV );
+        }
 
-    // Filter out all but color requested
-    if ( colorWanted == Red ) {
-        cvThreshold( m_red1 , m_red1 , 200 , 255 , CV_THRESH_BINARY );
-    }
-    else {
-        cvThreshold( m_red1 , m_red1 , 55 , 255 , CV_THRESH_BINARY_INV );
-    }
+        if ( colorWanted == Blue ) {
+            cvThreshold( m_blue1 , m_blue1 , 200 , 255 , CV_THRESH_BINARY );
+        }
+        else {
+            cvThreshold( m_blue1 , m_blue1 , 55 , 255 , CV_THRESH_BINARY_INV );
+        }
 
-    if ( colorWanted == Green ) {
-        cvThreshold( m_green1 , m_green1 , 200 , 255 , CV_THRESH_BINARY );
-    }
-    else {
-        cvThreshold( m_green1 , m_green1 , 55 , 255 , CV_THRESH_BINARY_INV );
-    }
+        // Combine all colors to make sure white isn't included in the final picture
+        cvAnd( m_red1 , m_green1 , m_channelAnd1 , NULL );
+        cvAnd( m_channelAnd1 , m_blue1 , m_channelAnd2 , NULL );
 
-    if ( colorWanted == Blue ) {
-        cvThreshold( m_blue1 , m_blue1 , 200 , 255 , CV_THRESH_BINARY );
-    }
-    else {
-        cvThreshold( m_blue1 , m_blue1 , 55 , 255 , CV_THRESH_BINARY_INV );
-    }
-
-    // Combine all colors to make sure white isn't included in the final picture
-    cvAnd( m_red1 , m_green1 , m_channelAnd1 , NULL );
-    cvAnd( m_channelAnd1 , m_blue1 , m_channelAnd2 , NULL );
-
-    if ( colorWanted == Red ) {
-        cvMerge( m_channelAnd2 , m_channelAnd2 , m_channelAnd2 , NULL , m_redCalib );
-    }
-    else if ( colorWanted == Green ) {
-        cvMerge( m_channelAnd2 , m_channelAnd2 , m_channelAnd2 , NULL , m_greenCalib );
-    }
-    else if ( colorWanted == Blue ) {
-        cvMerge( m_channelAnd2 , m_channelAnd2 , m_channelAnd2 , NULL , m_blueCalib );
+        if ( colorWanted == Red ) {
+            cvMerge( m_channelAnd2 , m_channelAnd2 , m_channelAnd2 , NULL , m_redCalib );
+        }
+        else if ( colorWanted == Green ) {
+            cvMerge( m_channelAnd2 , m_channelAnd2 , m_channelAnd2 , NULL , m_greenCalib );
+        }
+        else if ( colorWanted == Blue ) {
+            cvMerge( m_channelAnd2 , m_channelAnd2 , m_channelAnd2 , NULL , m_blueCalib );
+        }
     }
 }
 
 void Kinect::combineProcessedImages() {
-    cvAnd( m_redCalib , m_greenCalib , m_imageAnd1 , NULL );
-    cvAnd( m_imageAnd1 , m_blueCalib , m_imageAnd2 , NULL );
+    if ( isConnected() ) {
+        cvAnd( m_redCalib , m_greenCalib , m_imageAnd1 , NULL );
+        cvAnd( m_imageAnd1 , m_blueCalib , m_imageAnd2 , NULL );
 
-    m_imageMutex.lock();
-    m_displayImage = CreateBitmap( 320 , 240 , 1 , 32 , m_imageAnd2->imageData );
-    m_imageMutex.unlock();
+        m_imageMutex.lock();
+        m_displayImage = CreateBitmap( 320 , 240 , 1 , 32 , m_imageAnd2->imageData );
+        m_imageMutex.unlock();
+    }
 }
 
 void Kinect::display( HWND window , int x , int y ) {

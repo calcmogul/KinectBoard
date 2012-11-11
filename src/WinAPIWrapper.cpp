@@ -31,3 +31,17 @@ void leftClick( INPUT& input ) {
 	input.mi.dwFlags = MOUSEEVENTF_LEFTUP;
 	SendInput( 1 , &input , sizeof(input) );
 }
+
+void rightClick( INPUT& ) {
+    // right mouse button down
+    ZeroMemory( &input , sizeof(INPUT) );
+    input.type = INPUT_MOUSE;
+    input.mi.dwFlags = MOUSEEVENTF_RIGHTDOWN;
+    SendInput( 1 , &input , sizeof(input) );
+
+    // right mouse button up
+    ZeroMemory( &input , sizeof(INPUT) );
+    input.type = INPUT_MOUSE;
+    input.mi.dwFlags = MOUSEEVENTF_RIGHTUP;
+    SendInput( 1 , &input , sizeof(input) );
+}

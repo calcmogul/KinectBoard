@@ -76,7 +76,8 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
             FALSE ); // adjust the size
 
     // Create a new window to be used for the lifetime of the application
-    HWND mainWindow = CreateWindow( mainClassName ,
+    HWND mainWindow = CreateWindowEx( 0 ,
+            mainClassName ,
             "KinectBoard" ,
             WS_SYSMENU | WS_CAPTION | WS_VISIBLE | WS_MINIMIZEBOX | WS_CLIPCHILDREN ,
             ( GetSystemMetrics(SM_CXSCREEN) - 200 ) / 2 ,
@@ -88,6 +89,24 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
             Instance ,
             NULL );
     /* =================================================== */
+
+    HWND recalibButton = CreateWindowEx( 0,
+            "BUTTON",
+            "Recalibrate",
+            WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+            9,
+            240 - 9 - 24,
+            100,
+            24,
+            mainWindow,
+            reinterpret_cast<HMENU>( IDC_RECALIBRATE_BUTTON ),
+            GetModuleHandle( NULL ),
+            NULL);
+
+    SendMessage( recalibButton,
+            WM_SETFONT,
+            reinterpret_cast<WPARAM>( GetStockObject( DEFAULT_GUI_FONT ) ),
+            MAKELPARAM( FALSE , 0 ) );
 
     // Calibration window
     HWND testWindow = CreateWindowEx( 0 ,
@@ -104,26 +123,6 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
             NULL );
 
     testWin.create( testWindow );
-
-    HGDIOBJ hfDefault = GetStockObject( DEFAULT_GUI_FONT );
-
-    HWND hWndButton = CreateWindowEx( 0,
-            "BUTTON",
-            "Recalibrate",
-            WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-            9,
-            240 - 9 - 24,
-            100,
-            24,
-            mainWindow,
-            reinterpret_cast<HMENU>( IDC_RECALIBRATE_BUTTON ),
-            GetModuleHandle( NULL ),
-            NULL);
-
-    SendMessage(hWndButton,
-            WM_SETFONT,
-            reinterpret_cast<WPARAM>( hfDefault ),
-            MAKELPARAM( FALSE , 0 ) );
 
     SendMessage( mainWindow , WM_COMMAND , IDC_RECALIBRATE_BUTTON , 0 ); // Calibrate Kinect
 
@@ -149,6 +148,9 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
         }
 
         projectorKinect.processImage( Kinect::Red );
+        //projectorKinect.processImage( Kinect::Green );
+        //projectorKinect.processImage( Kinect::Blue );
+        //projectorKinect.combineProcessedImages();
         projectorKinect.display( mainWindow , 0 , 0 );
 
         // TODO get images from Kinect, process them, and move mouse and press mouse buttons
@@ -195,19 +197,14 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
                 }
 
                 ShowWindow( testWin.getSystemHandle() , SW_MINIMIZE );
+                break;
             }
-            break;
+
+            case WM_DESTROY: {
+                PostQuitMessage( 0 );
+                break;
+            }
         }
-        break;
-    }
-
-    case WM_SIZE: {
-        projectorKinect.display( Handle , 0 , 0 );
-        break;
-    }
-
-    case WM_WINDOWPOSCHANGED: {
-        projectorKinect.display( Handle , 0 , 0 );
         break;
     }
 

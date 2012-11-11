@@ -23,5 +23,6 @@
 
 void moveMouse( INPUT& input , DWORD dx , DWORD dy , DWORD dwFlags = 0 ); // put extra flags here; MOUSEEVENTF_MOVE is added automatically
 void leftClick( INPUT& input ); // sends left click and release to event queue
+void rightClick( INPUT& input ); // sends right click and release to event queue
 
 #endif // WINAPI_WRAPPER_H
