@@ -11,6 +11,7 @@
 #define KINECT_HPP
 
 #include "CKinect/kinect.h"
+#include "ImageVars.hpp"
 
 #include <SFML/System/Mutex.hpp>
 
@@ -35,6 +36,9 @@ public:
 
     // Starts image stream from Kinect
     void startStream();
+
+    // Stops image stream from Kinect
+    void stopStream();
 
     /* Returns true if there is a Kinect connected to the USB port and
      * available to use

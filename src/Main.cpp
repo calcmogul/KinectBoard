@@ -5,13 +5,14 @@
 //=============================================================================
 
 /*
+ * TODO Use default fonts and SystemParametersInfo to avoid need to load
+ *      external .ttf files
  * TODO Add support for multiple monitors
  */
 
 #include <SFML/Graphics/RenderWindow.hpp>
-#include <SFML/Graphics/Sprite.hpp>
-#include <SFML/Graphics/Texture.hpp>
-#include <SFML/Graphics/RectangleShape.hpp>
+
+#include "TestScreen.hpp"
 
 #define _WIN32_WINNT 0x0601
 #define WIN32_LEAN_AND_MEAN
@@ -25,10 +26,12 @@ enum {
 
 #include "WinAPIWrapper.h"
 #include "Kinect.hpp"
+#include <iostream> // TODO Remove me
 
 // global because the drawing is set up to be continuous in CALLBACK OnEvent
 sf::RenderWindow testWin;
 Kinect projectorKinect;
+volatile bool isOpen = true;
 
 LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LParam );
 
@@ -38,8 +41,6 @@ BOOL CALLBACK MonitorEnumProc(
     LPRECT lprcMonitor,
     LPARAM dwData
 );
-
-void drawTestPattern( sf::RenderWindow& targetWin , const sf::Color& outlineColor );
 
 INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     const char* mainClassName = "KinectBoard";
@@ -69,7 +70,7 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     INPUT input = { 0 };
 
     /* ===== Make a new window that isn't fullscreen ===== */
-    RECT winSize = { 0 , 0 , 320 , 240 }; // set the size, but not the position
+    RECT winSize = { 0 , 0 , Image::Width , Image::Height }; // set the size, but not the position
     AdjustWindowRect(
             &winSize ,
             WS_SYSMENU | WS_CAPTION | WS_VISIBLE | WS_MINIMIZEBOX | WS_CLIPCHILDREN ,
@@ -80,10 +81,10 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
             mainClassName ,
             "KinectBoard" ,
             WS_SYSMENU | WS_CAPTION | WS_VISIBLE | WS_MINIMIZEBOX | WS_CLIPCHILDREN ,
-            ( GetSystemMetrics(SM_CXSCREEN) - 200 ) / 2 ,
-            ( GetSystemMetrics(SM_CYSCREEN) - 150 ) / 2 ,
-            winSize.right - winSize.left , // 320
-            winSize.bottom - winSize.top , // 240
+            ( GetSystemMetrics(SM_CXSCREEN) - ( winSize.right - winSize.left ) ) / 2 ,
+            ( GetSystemMetrics(SM_CYSCREEN) - ( winSize.bottom - winSize.top ) ) / 2 ,
+            winSize.right - winSize.left , // returns image width (resized as window)
+            winSize.bottom - winSize.top , // returns image height (resized as window)
             NULL ,
             NULL ,
             Instance ,
@@ -95,7 +96,7 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
             "Recalibrate",
             WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
             9,
-            240 - 9 - 24,
+            Image::Height - 9 - 24,
             100,
             24,
             mainWindow,
@@ -108,30 +109,16 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
             reinterpret_cast<WPARAM>( GetStockObject( DEFAULT_GUI_FONT ) ),
             MAKELPARAM( FALSE , 0 ) );
 
-    // Calibration window
-    HWND testWindow = CreateWindowEx( 0 ,
-            mainClassName ,
-            "KinectBoard" ,
-            WS_CHILD | WS_POPUP | WS_MINIMIZE ,
-            0 ,
-            0 ,
-            GetSystemMetrics(SM_CXSCREEN) ,
-            GetSystemMetrics(SM_CYSCREEN) ,
-            mainWindow ,
-            NULL ,
-            Instance ,
-            NULL );
-
-    testWin.create( testWindow );
-
     SendMessage( mainWindow , WM_COMMAND , IDC_RECALIBRATE_BUTTON , 0 ); // Calibrate Kinect
 
     bool lastConnection = true; // prevents window icon from being set every loop
 
-    while ( GetMessage( &Message , NULL , 0 , 0 ) > 0 ) {
+    while ( isOpen ) {
         // If a message was waiting in the message queue, process it
-        TranslateMessage( &Message );
-        DispatchMessage( &Message );
+        if ( PeekMessage( &Message , NULL , 0 , 0 , PM_REMOVE ) > 0 ) {
+            TranslateMessage( &Message );
+            DispatchMessage( &Message );
+        }
 
         // change color of icon to green or red if Kinect is connected or disconnected respectively
         if ( projectorKinect.isConnected() && lastConnection == false ) { // if is connected and wasn't before
@@ -147,7 +134,7 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
             lastConnection = false;
         }
 
-        projectorKinect.processImage( Kinect::Red );
+        //projectorKinect.processImage( Kinect::Red );
         //projectorKinect.processImage( Kinect::Green );
         //projectorKinect.processImage( Kinect::Blue );
         //projectorKinect.combineProcessedImages();
@@ -178,23 +165,28 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
         switch( LOWORD(WParam) ) {
             case IDC_RECALIBRATE_BUTTON: {
                 // if there is no Kinect connected, don't bother trying to retrieve images
-                if ( projectorKinect.isConnected() ) {
-                    drawTestPattern( testWin , sf::Color( 255 , 0 , 0 ) );
+                /*if ( projectorKinect.isConnected() ) {
+                    sf::TestScreen test;
+
+                    test.setColor( sf::TestScreen::Red );
+                    test.display();
                     Sleep( 100 ); // give Kinect time to get image w/ test pattern
                     projectorKinect.processImage( Kinect::Red );
 
-                    drawTestPattern( testWin , sf::Color( 0 , 255 , 0 ) );
+                    test.setColor( sf::TestScreen::Red );
+                    test.display();
                     Sleep( 100 ); // give Kinect time to get image w/ test pattern
                     projectorKinect.processImage( Kinect::Green );
 
-                    drawTestPattern( testWin , sf::Color( 0 , 0 , 255 ) );
+                    test.setColor( sf::TestScreen::Red );
+                    test.display();
                     Sleep( 100 ); // give Kinect time to get image w/ test pattern
                     projectorKinect.processImage( Kinect::Blue );
 
                     projectorKinect.combineProcessedImages();
 
                     // TODO process Kinect image to find location of Kinect in 3D space
-                }
+                }*/
 
                 ShowWindow( testWin.getSystemHandle() , SW_MINIMIZE );
                 break;
@@ -210,6 +202,7 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
 
     case WM_DESTROY: {
         PostQuitMessage( 0 );
+        isOpen = false;
         break;
     }
 
@@ -228,53 +221,4 @@ BOOL CALLBACK MonitorEnumProc(
     LPARAM dwData
 ) {
     return FALSE;
-}
-
-void drawTestPattern( sf::RenderWindow& targetWin , const sf::Color& outlineColor ) {
-    // keep mouse from covering up pattern
-    targetWin.setMouseCursorVisible( false );
-
-    /* ===== Create and draw the calibration graphic ===== */
-    // Construct pixel data
-    static sf::Image testImage;
-    testImage.create( 40 , 40 , sf::Color( 0 , 0 , 0 ) );
-
-    // Change top-left block to white
-    for ( unsigned int yPos = 0 ; yPos < 20 ; yPos++ ) {
-        for ( unsigned int xPos = 20 ; xPos < 40 ; xPos++ )
-            testImage.setPixel( xPos , yPos , sf::Color( 255 , 255 , 255 ) );
-    }
-
-    // Change bottom-right block to white
-    for ( unsigned int yPos = 20 ; yPos < 40 ; yPos++ ) {
-        for ( unsigned int xPos = 0 ; xPos < 20 ; xPos++ )
-            testImage.setPixel( xPos , yPos , sf::Color( 255 , 255 , 255 ) );
-    }
-
-    // Prepare the test pattern for drawing
-    static sf::Texture testTexture;
-    testTexture.loadFromImage( testImage );
-    testTexture.setRepeated( true );
-
-    static sf::Sprite calibrationSprite( testTexture );
-    calibrationSprite.setTextureRect( sf::IntRect( 0 , 0 , targetWin.getSize().x , targetWin.getSize().y ) );
-
-    // Create red border for window
-    static sf::RectangleShape border( sf::Vector2f( targetWin.getSize().x - 40.f , targetWin.getSize().y - 40.f ) );
-    border.setFillColor( sf::Color( 0 , 0 , 0 , 0 ) );
-    border.setOutlineThickness( 20 );
-    border.setOutlineColor( outlineColor );
-
-    // Set graphics positions before drawing them
-    calibrationSprite.setPosition( 20.f , 20.f );
-    border.setPosition( 20.f , 20.f );
-
-    // Make window visible before drawing to it
-    ShowWindow( targetWin.getSystemHandle() , SW_SHOWMAXIMIZED );
-
-    // Draw graphics to window
-    targetWin.clear( sf::Color( 0 , 0 , 0 ) );
-    targetWin.draw( calibrationSprite );
-    targetWin.draw( border );
-    targetWin.display();
 }

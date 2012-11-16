@@ -32,7 +32,7 @@ void leftClick( INPUT& input ) {
 	SendInput( 1 , &input , sizeof(input) );
 }
 
-void rightClick( INPUT& ) {
+void rightClick( INPUT& input ) {
     // right mouse button down
     ZeroMemory( &input , sizeof(INPUT) );
     input.type = INPUT_MOUSE;

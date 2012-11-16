@@ -18,20 +18,9 @@
 Kinect::Kinect() : m_displayImage( NULL ) {
     m_connected = false; // may be false if something in initialization fails later
 
-    // Initialize Kinect
-    m_kinect = knt_init();
-
-    // start the rgb image stream
-    if ( m_kinect != NULL ) {
-        m_kinect->rgb->newframe = newFrame;
-
-        m_kinect->rgb->startstream( m_kinect->rgb );
-    }
-
-    std::printf( "Kinect initialized\n" );
-
-    CvSize imageSize = { 320 , 240 };
+    CvSize imageSize = { Image::Width , Image::Height };
     m_cvImage = cvCreateImage( imageSize , 8 , 4 );
+    m_cvImage->imageData = static_cast<char*>( std::malloc( Image::Width * Image::Height * 4 ) );
 
     m_red1 = cvCreateImage( imageSize , 8 , 1 );
     m_green1 = cvCreateImage( imageSize , 8 , 1 );
@@ -55,13 +44,22 @@ Kinect::Kinect() : m_displayImage( NULL ) {
     m_greenCalib = cvCreateImage( imageSize , 8 , 3 );
     m_blueCalib = cvCreateImage( imageSize , 8 , 3 );
 
-    std::printf( "Stream started\n" );
+    startStream();
 }
 
 Kinect::~Kinect() {
     if ( m_kinect != NULL ) {
         knt_destroy( m_kinect );
+
+        // wait for Kinect thread to close before destroying instance
+        while ( m_kinect->threadrunning == 1 ) {
+            Sleep( 100 );
+        }
     }
+
+    m_imageMutex.lock();
+    std::free( m_cvImage->imageData );
+    m_imageMutex.unlock();
 
     cvReleaseImage( &m_cvImage );
 
@@ -89,16 +87,38 @@ Kinect::~Kinect() {
 }
 
 void Kinect::startStream() {
-    // Restart the Kinect stream
-    m_kinect->rgb->startstream( m_kinect->rgb );
+    // Initialize Kinect
+    if ( m_kinect == NULL ) {
+        m_kinect = knt_init();
+    }
+
+    // If the Kinect instance is valid, start the rgb image stream
+    if ( m_kinect != NULL ) {
+        m_kinect->rgb->newframe = newFrame;
+
+        m_kinect->rgb->callbackarg = this;
+        m_kinect->rgb->startstream( m_kinect->rgb );
+        std::printf( "Stream started\n" );
+    }
+}
+
+void Kinect::stopStream() {
+    // Stop the Kinect stream if it's running
+    if ( m_kinect != NULL ) {
+        knt_destroy( m_kinect );
+
+        // wait for Kinect thread to close before destroying instance
+        while ( m_kinect->threadrunning == 1 ) {
+            Sleep( 100 );
+        }
+
+        m_kinect = NULL;
+    }
 }
 
 bool Kinect::isConnected() {
-    pthread_mutex_lock( &m_kinect->threadrunning_mutex );
-    m_connected = m_kinect->threadrunning;
-    pthread_mutex_unlock( &m_kinect->threadrunning_mutex );
-
-    return m_connected;
+    // Returns true if m_kinect is initialized
+    return m_kinect != NULL;
 }
 
 void Kinect::processImage( ProcColor colorWanted ) {
@@ -152,7 +172,7 @@ void Kinect::combineProcessedImages() {
         cvAnd( m_imageAnd1 , m_blueCalib , m_imageAnd2 , NULL );
 
         m_imageMutex.lock();
-        m_displayImage = CreateBitmap( 320 , 240 , 1 , 32 , m_imageAnd2->imageData );
+        m_displayImage = CreateBitmap( Image::Width , Image::Height , 1 , 32 , m_imageAnd2->imageData );
         m_imageMutex.unlock();
     }
 }
@@ -191,28 +211,26 @@ void Kinect::display( HWND window , int x , int y ) {
 }
 
 void Kinect::newFrame( struct nstream_t* streamObject , void* classObject ) {
-    std::printf( "Got new frame\n" );
-    Kinect* kinectPtr = static_cast<Kinect*>( classObject );
+    Kinect* kinectPtr = reinterpret_cast<Kinect*>( classObject );
 
     kinectPtr->m_imageMutex.lock();
-    kinectPtr->m_cvImage->imageData = kinectPtr->m_kinect->rgb->buf;
+
+    char* pxlBuf = kinectPtr->m_kinect->rgb->buf;
 
     /* ===== Convert RGB to BGRA before displaying the image ===== */
     /* Swap R and B because Win32 expects the color components in the
      * opposite order they are currently in
      */
-    char* pxlBuf = static_cast<char*>( malloc( 320 * 240 * 4 ) );
 
-    for ( unsigned int i = 0 ; i < 320 * 240 * 4 ; i += 4 ) {
-        pxlBuf[i] = kinectPtr->m_cvImage->imageData[i+2];
-        pxlBuf[i+1] = kinectPtr->m_cvImage->imageData[i+1];
-        pxlBuf[i+2] = kinectPtr->m_cvImage->imageData[i];
+    for ( unsigned int startI = 0 , endI = 0 ; endI < Image::Width * Image::Height * 4 ; startI += 3 , endI += 4 ) {
+        kinectPtr->m_cvImage->imageData[endI] = pxlBuf[startI+2];
+        kinectPtr->m_cvImage->imageData[endI+1] = pxlBuf[startI+1];
+        kinectPtr->m_cvImage->imageData[endI+2] = pxlBuf[startI];
     }
     /* ============================================================ */
 
     // Make HBITMAP from pixel array
-    kinectPtr->m_displayImage = CreateBitmap( 320 , 240 , 1 , 32 , pxlBuf );
-    kinectPtr->m_imageMutex.unlock();
+    kinectPtr->m_displayImage = CreateBitmap( Image::Width , Image::Height , 1 , 32 , kinectPtr->m_cvImage->imageData );
 
-    free( pxlBuf );
+    kinectPtr->m_imageMutex.unlock();
 }

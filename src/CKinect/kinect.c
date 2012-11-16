@@ -135,7 +135,6 @@ int knt_startstream(struct nstream_t *stream)
         /* The main worker thread isn't running yet. Start it. */
         inst->threadrunning = 1;
         pthread_create(&inst->thread, NULL, knt_threadmain, inst);
-        pthread_detach(inst->thread);
 
         pthread_cond_wait(&inst->threadcond, &inst->threadrunning_mutex);
         if (inst->threadrunning == 0) {
@@ -257,6 +256,7 @@ void *knt_threadmain(void *in)
     if (error != 0) {
         fprintf(stderr, "failed to initialize libfreenect\n");
         knt_threadmain_abort(inst);
+        pthread_detach(inst->thread);
         pthread_exit(NULL);
     }
 
@@ -265,6 +265,7 @@ void *knt_threadmain(void *in)
         fprintf(stderr, "more/less than one kinect detected\n");
         freenect_shutdown(f_ctx);
         knt_threadmain_abort(inst);
+        pthread_detach(inst->thread);
         pthread_exit(NULL);
     }
 
@@ -273,6 +274,7 @@ void *knt_threadmain(void *in)
         fprintf(stderr, "failed to open kinect device\n");
         freenect_shutdown(f_ctx);
         knt_threadmain_abort(inst);
+        pthread_detach(inst->thread);
         pthread_exit(NULL);
     }
 
@@ -289,6 +291,7 @@ void *knt_threadmain(void *in)
         freenect_close_device(f_dev);
         freenect_shutdown(f_ctx);
         knt_threadmain_abort(inst);
+        pthread_detach(inst->thread);
         pthread_exit(NULL);
     }
 
@@ -302,6 +305,7 @@ void *knt_threadmain(void *in)
         freenect_close_device(f_dev);
         freenect_shutdown(f_ctx);
         knt_threadmain_abort(inst);
+        pthread_detach(inst->thread);
         pthread_exit(NULL);
     }
 
@@ -316,6 +320,7 @@ void *knt_threadmain(void *in)
         freenect_close_device(f_dev);
         freenect_shutdown(f_ctx);
         knt_threadmain_abort(inst);
+        pthread_detach(inst->thread);
         pthread_exit(NULL);
     }
 
@@ -330,6 +335,7 @@ void *knt_threadmain(void *in)
         freenect_close_device(f_dev);
         freenect_shutdown(f_ctx);
         knt_threadmain_abort(inst);
+        pthread_detach(inst->thread);
         pthread_exit(NULL);
     }
 
@@ -339,6 +345,7 @@ void *knt_threadmain(void *in)
         freenect_close_device(f_dev);
         freenect_shutdown(f_ctx);
         knt_threadmain_abort(inst);
+        pthread_detach(inst->thread);
         pthread_exit(NULL);
     }
 
@@ -348,6 +355,7 @@ void *knt_threadmain(void *in)
         freenect_close_device(f_dev);
         freenect_shutdown(f_ctx);
         knt_threadmain_abort(inst);
+        pthread_detach(inst->thread);
         pthread_exit(NULL);
     }
 
@@ -383,6 +391,7 @@ void *knt_threadmain(void *in)
     freenect_close_device(f_dev);
     freenect_shutdown(f_ctx);
 
+    pthread_detach(inst->thread);
     pthread_exit(NULL);
     return NULL;
 }
@@ -445,6 +454,11 @@ void knt_destroy(struct knt_inst_t *inst)
     /* make sure the streams are stopped first */
     inst->rgb->stopstream(inst->rgb);
     inst->depth->stopstream(inst->depth);
+
+    /* join to the thread: maybe this should be in the stopstream functions?
+       the entire idea that stopstream can be called both from inside and
+       outside of the thread is a bit jacked up. I'll probably fix this soon */
+    pthread_join(inst->thread, NULL);
 
     /* free everything */
     pthread_mutex_destroy(&inst->threadrunning_mutex);
