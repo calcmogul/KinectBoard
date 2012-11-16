@@ -5,7 +5,10 @@
 //Author: Tyler Veness
 //=============================================================================
 
-// TODO Reliable way to detect if Kinect is still connected and functioning
+/*
+ * startStream() must be called to start the image stream upon construction of
+ * the object
+ */
 
 #ifndef KINECT_HPP
 #define KINECT_HPP
@@ -61,6 +64,13 @@ public:
     void display( HWND window , int x , int y );
 
 protected:
+    sf::Mutex m_imageMutex;
+    sf::Mutex m_displayMutex;
+
+    // Called when a new image is received (swaps the image buffer)
+    static void newFrame( struct nstream_t* streamObject , void* classObject );
+
+private:
     struct knt_inst_t* m_kinect;
 
     HBITMAP m_displayImage;
@@ -95,14 +105,6 @@ protected:
     IplImage* m_redCalib;
     IplImage* m_greenCalib;
     IplImage* m_blueCalib;
-
-private:
-    bool m_connected;
-    sf::Mutex m_imageMutex;
-    sf::Mutex m_displayMutex;
-
-    // Called when a new image is received (swaps the image buffer)
-    static void newFrame( struct nstream_t* streamObject , void* classObject );
 };
 
 #endif // KINECT_HPP

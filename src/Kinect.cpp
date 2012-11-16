@@ -15,9 +15,7 @@
 
 #include <SFML/Graphics/Image.hpp>
 
-Kinect::Kinect() : m_displayImage( NULL ) {
-    m_connected = false; // may be false if something in initialization fails later
-
+Kinect::Kinect() : m_kinect( NULL ) , m_displayImage( NULL ) {
     CvSize imageSize = { Image::Width , Image::Height };
     m_cvImage = cvCreateImage( imageSize , 8 , 4 );
     m_cvImage->imageData = static_cast<char*>( std::malloc( Image::Width * Image::Height * 4 ) );
@@ -43,19 +41,10 @@ Kinect::Kinect() : m_displayImage( NULL ) {
     m_redCalib = cvCreateImage( imageSize , 8 , 3 );
     m_greenCalib = cvCreateImage( imageSize , 8 , 3 );
     m_blueCalib = cvCreateImage( imageSize , 8 , 3 );
-
-    startStream();
 }
 
 Kinect::~Kinect() {
-    if ( m_kinect != NULL ) {
-        knt_destroy( m_kinect );
-
-        // wait for Kinect thread to close before destroying instance
-        while ( m_kinect->threadrunning == 1 ) {
-            Sleep( 100 );
-        }
-    }
+    stopStream();
 
     m_imageMutex.lock();
     std::free( m_cvImage->imageData );

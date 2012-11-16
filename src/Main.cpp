@@ -29,8 +29,7 @@ enum {
 #include <iostream> // TODO Remove me
 
 // global because the drawing is set up to be continuous in CALLBACK OnEvent
-sf::RenderWindow testWin;
-Kinect projectorKinect;
+Kinect* projectorKinectPtr = NULL;
 volatile bool isOpen = true;
 
 LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LParam );
@@ -109,6 +108,10 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
             reinterpret_cast<WPARAM>( GetStockObject( DEFAULT_GUI_FONT ) ),
             MAKELPARAM( FALSE , 0 ) );
 
+    Kinect projectorKinect;
+    projectorKinect.startStream();
+    projectorKinectPtr = &projectorKinect;
+
     SendMessage( mainWindow , WM_COMMAND , IDC_RECALIBRATE_BUTTON , 0 ); // Calibrate Kinect
 
     bool lastConnection = true; // prevents window icon from being set every loop
@@ -150,8 +153,9 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
         Sleep( 50 );
     }
 
+    projectorKinect.stopStream();
+
     // Clean up windows
-    testWin.close();
     //DestroyWindow( testWindow );
     //DestroyWindow( mainWindow );
     UnregisterClass( mainClassName , Instance );
@@ -188,7 +192,6 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
                     // TODO process Kinect image to find location of Kinect in 3D space
                 }*/
 
-                ShowWindow( testWin.getSystemHandle() , SW_MINIMIZE );
                 break;
             }
 
@@ -197,6 +200,14 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
                 break;
             }
         }
+        break;
+    }
+
+    case WM_MOVING: {
+        if ( projectorKinectPtr != NULL ) {
+            projectorKinectPtr->display( Handle , 0 , 0 );
+        }
+
         break;
     }
 
