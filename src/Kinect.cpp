@@ -5,7 +5,6 @@
 //Author: Tyler Veness
 //=============================================================================
 
-#include <cstdio>
 #include <cstring>
 #include "Kinect.hpp"
 
@@ -14,11 +13,12 @@
 #include <opencv2/highgui/highgui_c.h>
 
 #include <SFML/Graphics/Image.hpp>
+#include <iostream> // TODO Remove me
 
 Kinect::Kinect() : m_kinect( NULL ) , m_displayImage( NULL ) {
-    CvSize imageSize = { Image::Width , Image::Height };
+    CvSize imageSize = { ImageVars::Width , ImageVars::Height };
     m_cvImage = cvCreateImage( imageSize , 8 , 4 );
-    m_cvImage->imageData = static_cast<char*>( std::malloc( Image::Width * Image::Height * 4 ) );
+    m_cvImage->imageData = static_cast<char*>( std::malloc( ImageVars::Width * ImageVars::Height * 4 ) );
 
     m_red1 = cvCreateImage( imageSize , 8 , 1 );
     m_green1 = cvCreateImage( imageSize , 8 , 1 );
@@ -87,7 +87,6 @@ void Kinect::startStream() {
 
         m_kinect->rgb->callbackarg = this;
         m_kinect->rgb->startstream( m_kinect->rgb );
-        std::printf( "Stream started\n" );
     }
 }
 
@@ -106,8 +105,18 @@ void Kinect::stopStream() {
 }
 
 bool Kinect::isConnected() {
+    bool isConnected = false;
+
     // Returns true if m_kinect is initialized
-    return m_kinect != NULL;
+    if ( m_kinect != NULL ) {
+        pthread_mutex_lock( &m_kinect->threadrunning_mutex );
+
+        isConnected = ( m_kinect->threadrunning == 1 );
+
+        pthread_mutex_unlock( &m_kinect->threadrunning_mutex );
+    }
+
+    return isConnected;
 }
 
 void Kinect::processImage( ProcColor colorWanted ) {
@@ -161,7 +170,9 @@ void Kinect::combineProcessedImages() {
         cvAnd( m_imageAnd1 , m_blueCalib , m_imageAnd2 , NULL );
 
         m_imageMutex.lock();
-        m_displayImage = CreateBitmap( Image::Width , Image::Height , 1 , 32 , m_imageAnd2->imageData );
+        m_displayMutex.lock();
+        m_displayImage = CreateBitmap( ImageVars::Width , ImageVars::Height , 1 , 32 , m_imageAnd2->imageData );
+        m_displayMutex.unlock();
         m_imageMutex.unlock();
     }
 }
@@ -211,15 +222,17 @@ void Kinect::newFrame( struct nstream_t* streamObject , void* classObject ) {
      * opposite order they are currently in
      */
 
-    for ( unsigned int startI = 0 , endI = 0 ; endI < Image::Width * Image::Height * 4 ; startI += 3 , endI += 4 ) {
+    for ( unsigned int startI = 0 , endI = 0 ; endI < ImageVars::Width * ImageVars::Height * 4 ; startI += 3 , endI += 4 ) {
         kinectPtr->m_cvImage->imageData[endI] = pxlBuf[startI+2];
         kinectPtr->m_cvImage->imageData[endI+1] = pxlBuf[startI+1];
         kinectPtr->m_cvImage->imageData[endI+2] = pxlBuf[startI];
     }
-    /* ============================================================ */
+    /* =========================================================== */
 
     // Make HBITMAP from pixel array
-    kinectPtr->m_displayImage = CreateBitmap( Image::Width , Image::Height , 1 , 32 , kinectPtr->m_cvImage->imageData );
+    kinectPtr->m_displayMutex.lock();
+    kinectPtr->m_displayImage = CreateBitmap( ImageVars::Width , ImageVars::Height , 1 , 32 , kinectPtr->m_cvImage->imageData );
+    kinectPtr->m_displayMutex.unlock();
 
     kinectPtr->m_imageMutex.unlock();
 }

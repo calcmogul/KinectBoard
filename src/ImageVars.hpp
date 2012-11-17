@@ -7,7 +7,7 @@
 #ifndef IMAGE_VARS_HPP
 #define IMAGE_VARS_HPP
 
-enum Image {
+enum ImageVars {
     Width = 640,
     Height = 480
 };

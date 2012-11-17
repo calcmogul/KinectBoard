@@ -363,7 +363,7 @@ void *knt_threadmain(void *in)
     pthread_cond_broadcast(&inst->threadcond);
 
     /* Turn the LED red */
-    /* freenect_set_led(f_dev, LED_RED); */
+    freenect_set_led(f_dev, LED_RED);
 
     /* Do the main loop */
     while ((freenect_process_events(f_ctx) >= 0)
@@ -381,12 +381,17 @@ void *knt_threadmain(void *in)
            inst->rgb->timestamp, curtime.tv_sec); printf("looks like we aren't
            getting any frames, bailing out...\n"); break; }
            pthread_mutex_unlock(&inst->depth->mutex); */
-
     }
+
+    /* Turn the LED blinking green */
+    freenect_set_led(f_dev, LED_BLINK_GREEN);
 
     /* Clean up */
     knt_rgb_stopstream(inst->rgb);
     knt_depth_stopstream(inst->depth);
+
+    freenect_stop_video(f_dev);
+    //freenect_stop_depth(f_dev);
 
     freenect_close_device(f_dev);
     freenect_shutdown(f_ctx);

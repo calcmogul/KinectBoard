@@ -21,14 +21,15 @@
 typedef struct tagINPUT INPUT, *PINPUT;
 
 enum {
-    IDC_RECALIBRATE_BUTTON = 101
+    IDC_RECALIBRATE_BUTTON = 101,
+    IDC_STREAM_TOGGLE_BUTTON = 102
 };
 
 #include "WinAPIWrapper.h"
 #include "Kinect.hpp"
-#include <iostream> // TODO Remove me
 
 // global because the drawing is set up to be continuous in CALLBACK OnEvent
+HWND mainWindow = NULL;
 Kinect* projectorKinectPtr = NULL;
 volatile bool isOpen = true;
 
@@ -47,7 +48,7 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     HICON kinectON = LoadIcon( Instance , "kinect1-ON" );
     HICON kinectOFF = LoadIcon( Instance , "kinect2-OFF" );
 
-    HBRUSH mainBrush = CreateSolidBrush( RGB( 160 , 160 , 160 ) );
+    HBRUSH mainBrush = CreateSolidBrush( RGB( 0 , 0 , 0 ) );
 
     // Define a class for our main window
     WNDCLASSEX WindowClass;
@@ -69,14 +70,14 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     INPUT input = { 0 };
 
     /* ===== Make a new window that isn't fullscreen ===== */
-    RECT winSize = { 0 , 0 , Image::Width , Image::Height }; // set the size, but not the position
+    RECT winSize = { 0 , 0 , ImageVars::Width , ImageVars::Height }; // set the size, but not the position
     AdjustWindowRect(
             &winSize ,
             WS_SYSMENU | WS_CAPTION | WS_VISIBLE | WS_MINIMIZEBOX | WS_CLIPCHILDREN ,
             FALSE ); // adjust the size
 
     // Create a new window to be used for the lifetime of the application
-    HWND mainWindow = CreateWindowEx( 0 ,
+    mainWindow = CreateWindowEx( 0 ,
             mainClassName ,
             "KinectBoard" ,
             WS_SYSMENU | WS_CAPTION | WS_VISIBLE | WS_MINIMIZEBOX | WS_CLIPCHILDREN ,
@@ -95,7 +96,7 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
             "Recalibrate",
             WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
             9,
-            Image::Height - 9 - 24,
+            ImageVars::Height - 9 - 24,
             100,
             24,
             mainWindow,
@@ -108,11 +109,31 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
             reinterpret_cast<WPARAM>( GetStockObject( DEFAULT_GUI_FONT ) ),
             MAKELPARAM( FALSE , 0 ) );
 
+
+    HWND toggleStreamButton = CreateWindowEx( 0,
+            "BUTTON",
+            "Start/Stop",
+            WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+            ImageVars::Width - 9 - 100,
+            ImageVars::Height - 9 - 24,
+            100,
+            24,
+            mainWindow,
+            reinterpret_cast<HMENU>( IDC_STREAM_TOGGLE_BUTTON ),
+            GetModuleHandle( NULL ),
+            NULL);
+
+    SendMessage( toggleStreamButton,
+            WM_SETFONT,
+            reinterpret_cast<WPARAM>( GetStockObject( DEFAULT_GUI_FONT ) ),
+            MAKELPARAM( FALSE , 0 ) );
+
     Kinect projectorKinect;
     projectorKinect.startStream();
     projectorKinectPtr = &projectorKinect;
 
-    SendMessage( mainWindow , WM_COMMAND , IDC_RECALIBRATE_BUTTON , 0 ); // Calibrate Kinect
+    // Calibrate Kinect
+    SendMessage( mainWindow , WM_COMMAND , IDC_RECALIBRATE_BUTTON , 0 );
 
     bool lastConnection = true; // prevents window icon from being set every loop
 
@@ -153,14 +174,12 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
         Sleep( 50 );
     }
 
-    projectorKinect.stopStream();
-
     // Clean up windows
     //DestroyWindow( testWindow );
     //DestroyWindow( mainWindow );
     UnregisterClass( mainClassName , Instance );
 
-    return Message.wParam;
+    return EXIT_SUCCESS;
 }
 
 LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LParam ) {
@@ -168,35 +187,47 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
     case WM_COMMAND: {
         switch( LOWORD(WParam) ) {
             case IDC_RECALIBRATE_BUTTON: {
-                // if there is no Kinect connected, don't bother trying to retrieve images
-                /*if ( projectorKinect.isConnected() ) {
-                    sf::TestScreen test;
+                if ( projectorKinectPtr != NULL ) {
+                    // if there is no Kinect connected, don't bother trying to retrieve images
+                    if ( projectorKinectPtr->isConnected() ) {
+                        sf::TestScreen testWin( "KinectBoard" , mainWindow , NULL );
 
-                    test.setColor( sf::TestScreen::Red );
-                    test.display();
-                    Sleep( 100 ); // give Kinect time to get image w/ test pattern
-                    projectorKinect.processImage( Kinect::Red );
+                        testWin.setColor( sf::TestScreen::Red );
+                        testWin.display();
+                        Sleep( 500 ); // give Kinect time to get image w/ test pattern
+                        projectorKinectPtr->processImage( Kinect::Red );
 
-                    test.setColor( sf::TestScreen::Red );
-                    test.display();
-                    Sleep( 100 ); // give Kinect time to get image w/ test pattern
-                    projectorKinect.processImage( Kinect::Green );
+                        testWin.setColor( sf::TestScreen::Green );
+                        testWin.display();
+                        Sleep( 500 ); // give Kinect time to get image w/ test pattern
+                        projectorKinectPtr->processImage( Kinect::Green );
 
-                    test.setColor( sf::TestScreen::Red );
-                    test.display();
-                    Sleep( 100 ); // give Kinect time to get image w/ test pattern
-                    projectorKinect.processImage( Kinect::Blue );
+                        testWin.setColor( sf::TestScreen::Blue );
+                        testWin.display();
+                        Sleep( 500 ); // give Kinect time to get image w/ test pattern
+                        projectorKinectPtr->processImage( Kinect::Blue );
 
-                    projectorKinect.combineProcessedImages();
+                        projectorKinectPtr->combineProcessedImages();
 
-                    // TODO process Kinect image to find location of Kinect in 3D space
-                }*/
+                        // TODO process Kinect image to find location of Kinect in 3D space
+
+                        testWin.close();
+                    }
+                }
 
                 break;
             }
 
-            case WM_DESTROY: {
-                PostQuitMessage( 0 );
+            case IDC_STREAM_TOGGLE_BUTTON: {
+                if ( projectorKinectPtr != NULL ) {
+                    if ( projectorKinectPtr->isConnected() ) {
+                        projectorKinectPtr->stopStream();
+                    }
+                    else {
+                        projectorKinectPtr->startStream();
+                    }
+                }
+
                 break;
             }
         }
@@ -211,9 +242,9 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
         break;
     }
 
-    case WM_DESTROY: {
-        PostQuitMessage( 0 );
+    case WM_CLOSE: {
         isOpen = false;
+        projectorKinectPtr->stopStream();
         break;
     }
 
