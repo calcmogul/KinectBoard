@@ -1,16 +1,10 @@
 //=============================================================================
-//File Name: ImageVars.hpp
+//File Name: ImageVars.cpp
 //Description: Holds variable containing Kinect's image properties
 //Author: Tyler Veness
 //=============================================================================
 
-#ifndef IMAGE_VARS_HPP
-#define IMAGE_VARS_HPP
+#include "ImageVars.hpp"
 
-class ImageVars {
-public:
-    const static unsigned int width;
-    const static unsigned int height;
-};
-
-#endif // IMAGE_VARS_HPP
+const unsigned int ImageVars::width = 640;
+const unsigned int ImageVars::height = 480;

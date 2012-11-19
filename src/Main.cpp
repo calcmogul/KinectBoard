@@ -5,12 +5,8 @@
 //=============================================================================
 
 /*
- * TODO Use default fonts and SystemParametersInfo to avoid need to load
- *      external .ttf files
  * TODO Add support for multiple monitors
  */
-
-#include <SFML/Graphics/RenderWindow.hpp>
 
 #include "TestScreen.hpp"
 
@@ -30,6 +26,7 @@ enum {
 
 // global because the drawing is set up to be continuous in CALLBACK OnEvent
 HWND mainWindow = NULL;
+HWND depthWindow = NULL;
 Kinect* projectorKinectPtr = NULL;
 volatile bool isOpen = true;
 
@@ -70,7 +67,7 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     INPUT input = { 0 };
 
     /* ===== Make a new window that isn't fullscreen ===== */
-    RECT winSize = { 0 , 0 , ImageVars::Width , ImageVars::Height }; // set the size, but not the position
+    RECT winSize = { 0 , 0 , static_cast<int>(ImageVars::width) , static_cast<int>(ImageVars::height) }; // set the size, but not the position
     AdjustWindowRect(
             &winSize ,
             WS_SYSMENU | WS_CAPTION | WS_VISIBLE | WS_MINIMIZEBOX | WS_CLIPCHILDREN ,
@@ -89,53 +86,32 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
             NULL ,
             Instance ,
             NULL );
+
+    depthWindow = CreateWindowEx( 0 ,
+            mainClassName ,
+            "KinectBoard - Depth" ,
+            WS_SYSMENU | WS_CAPTION | WS_VISIBLE | WS_MINIMIZEBOX | WS_CLIPCHILDREN ,
+            ( GetSystemMetrics(SM_CXSCREEN) - ( winSize.right - winSize.left ) ) / 2 ,
+            ( GetSystemMetrics(SM_CYSCREEN) - ( winSize.bottom - winSize.top ) ) / 2 ,
+            winSize.right - winSize.left , // returns image width (resized as window)
+            winSize.bottom - winSize.top , // returns image height (resized as window)
+            NULL ,
+            NULL ,
+            Instance ,
+            NULL );
     /* =================================================== */
 
-    HWND recalibButton = CreateWindowEx( 0,
-            "BUTTON",
-            "Recalibrate",
-            WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-            9,
-            ImageVars::Height - 9 - 24,
-            100,
-            24,
-            mainWindow,
-            reinterpret_cast<HMENU>( IDC_RECALIBRATE_BUTTON ),
-            GetModuleHandle( NULL ),
-            NULL);
-
-    SendMessage( recalibButton,
-            WM_SETFONT,
-            reinterpret_cast<WPARAM>( GetStockObject( DEFAULT_GUI_FONT ) ),
-            MAKELPARAM( FALSE , 0 ) );
-
-
-    HWND toggleStreamButton = CreateWindowEx( 0,
-            "BUTTON",
-            "Start/Stop",
-            WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-            ImageVars::Width - 9 - 100,
-            ImageVars::Height - 9 - 24,
-            100,
-            24,
-            mainWindow,
-            reinterpret_cast<HMENU>( IDC_STREAM_TOGGLE_BUTTON ),
-            GetModuleHandle( NULL ),
-            NULL);
-
-    SendMessage( toggleStreamButton,
-            WM_SETFONT,
-            reinterpret_cast<WPARAM>( GetStockObject( DEFAULT_GUI_FONT ) ),
-            MAKELPARAM( FALSE , 0 ) );
-
     Kinect projectorKinect;
-    projectorKinect.startStream();
+    projectorKinect.startVideoStream();
+    projectorKinect.startDepthStream();
     projectorKinectPtr = &projectorKinect;
 
     // Calibrate Kinect
     SendMessage( mainWindow , WM_COMMAND , IDC_RECALIBRATE_BUTTON , 0 );
 
-    bool lastConnection = true; // prevents window icon from being set every loop
+    // These prevent window icons from being set every loop
+    bool videoWasRunning = true;
+    bool depthWasRunning = true;
 
     while ( isOpen ) {
         // If a message was waiting in the message queue, process it
@@ -144,25 +120,43 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
             DispatchMessage( &Message );
         }
 
-        // change color of icon to green or red if Kinect is connected or disconnected respectively
-        if ( projectorKinect.isConnected() && lastConnection == false ) { // if is connected and wasn't before
-            SendMessage( mainWindow , WM_SETICON , ICON_SMALL , reinterpret_cast<LPARAM>(kinectON) );
-            SendMessage( mainWindow , WM_SETICON , ICON_BIG , reinterpret_cast<LPARAM>(kinectON) );
 
-            lastConnection = true;
-        }
-        else if ( !projectorKinect.isConnected() && lastConnection == true ) { // if isn't connected and was before
-            SendMessage( mainWindow , WM_SETICON , ICON_SMALL , reinterpret_cast<LPARAM>(kinectOFF) );
-            SendMessage( mainWindow , WM_SETICON , ICON_BIG , reinterpret_cast<LPARAM>(kinectOFF) );
+        // Change RGB window icon to red or green depending upon stream status
+        if ( projectorKinect.isVideoStreamRunning() && videoWasRunning == false ) {
+            SendMessage( mainWindow , WM_SETICON , ICON_SMALL , (LPARAM)kinectON );
+            SendMessage( mainWindow , WM_SETICON , ICON_BIG , (LPARAM)kinectON );
 
-            lastConnection = false;
+            videoWasRunning = true;
         }
+        else if ( !projectorKinect.isVideoStreamRunning() && videoWasRunning == true ) {
+            SendMessage( mainWindow , WM_SETICON , ICON_SMALL , (LPARAM)kinectOFF );
+            SendMessage( mainWindow , WM_SETICON , ICON_BIG , (LPARAM)kinectOFF );
+
+            videoWasRunning = false;
+        }
+
+
+        // Change depth window icon to red or green depending upon stream status
+        if ( projectorKinect.isDepthStreamRunning() && depthWasRunning == false ) {
+            SendMessage( depthWindow , WM_SETICON , ICON_SMALL , (LPARAM)kinectON );
+            SendMessage( depthWindow , WM_SETICON , ICON_BIG , (LPARAM)kinectON );
+
+            depthWasRunning = true;
+        }
+        else if ( !projectorKinect.isDepthStreamRunning() && depthWasRunning == true ) {
+            SendMessage( depthWindow , WM_SETICON , ICON_SMALL , (LPARAM)kinectOFF );
+            SendMessage( depthWindow , WM_SETICON , ICON_BIG , (LPARAM)kinectOFF );
+
+            depthWasRunning = false;
+        }
+
 
         //projectorKinect.processImage( Kinect::Red );
         //projectorKinect.processImage( Kinect::Green );
         //projectorKinect.processImage( Kinect::Blue );
         //projectorKinect.combineProcessedImages();
-        projectorKinect.display( mainWindow , 0 , 0 );
+        projectorKinect.displayVideo( mainWindow , 0 , 0 );
+        projectorKinect.displayDepth( depthWindow , 0 , 0 );
 
         // TODO get images from Kinect, process them, and move mouse and press mouse buttons
 
@@ -175,7 +169,6 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     }
 
     // Clean up windows
-    //DestroyWindow( testWindow );
     //DestroyWindow( mainWindow );
     UnregisterClass( mainClassName , Instance );
 
@@ -184,30 +177,71 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
 
 LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LParam ) {
     switch ( Message ) {
+    case WM_CREATE: {
+        HWND recalibButton = CreateWindowEx( 0,
+                "BUTTON",
+                "Recalibrate",
+                WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+                9,
+                ImageVars::height - 9 - 24,
+                100,
+                24,
+                Handle,
+                reinterpret_cast<HMENU>( IDC_RECALIBRATE_BUTTON ),
+                GetModuleHandle( NULL ),
+                NULL);
+
+        SendMessage( recalibButton,
+                WM_SETFONT,
+                reinterpret_cast<WPARAM>( GetStockObject( DEFAULT_GUI_FONT ) ),
+                MAKELPARAM( FALSE , 0 ) );
+
+
+        HWND toggleStreamButton = CreateWindowEx( 0,
+                "BUTTON",
+                "Start/Stop",
+                WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+                ImageVars::width - 9 - 100,
+                ImageVars::height - 9 - 24,
+                100,
+                24,
+                Handle,
+                reinterpret_cast<HMENU>( IDC_STREAM_TOGGLE_BUTTON ),
+                GetModuleHandle( NULL ),
+                NULL);
+
+        SendMessage( toggleStreamButton,
+                WM_SETFONT,
+                reinterpret_cast<WPARAM>( GetStockObject( DEFAULT_GUI_FONT ) ),
+                MAKELPARAM( FALSE , 0 ) );
+
+        break;
+    }
+
     case WM_COMMAND: {
         switch( LOWORD(WParam) ) {
             case IDC_RECALIBRATE_BUTTON: {
                 if ( projectorKinectPtr != NULL ) {
                     // if there is no Kinect connected, don't bother trying to retrieve images
-                    if ( projectorKinectPtr->isConnected() ) {
-                        sf::TestScreen testWin( "KinectBoard" , mainWindow , NULL );
+                    if ( projectorKinectPtr->isVideoStreamRunning() ) {
+                        sf::TestScreen testWin( "KinectBoard" , Handle , NULL );
 
                         testWin.setColor( sf::TestScreen::Red );
                         testWin.display();
-                        Sleep( 500 ); // give Kinect time to get image w/ test pattern
-                        projectorKinectPtr->processImage( Kinect::Red );
+                        Sleep( 100 ); // give Kinect time to get image w/ test pattern
+                        projectorKinectPtr->processCalib( Kinect::Red );
 
                         testWin.setColor( sf::TestScreen::Green );
                         testWin.display();
-                        Sleep( 500 ); // give Kinect time to get image w/ test pattern
-                        projectorKinectPtr->processImage( Kinect::Green );
+                        Sleep( 100 ); // give Kinect time to get image w/ test pattern
+                        projectorKinectPtr->processCalib( Kinect::Green );
 
                         testWin.setColor( sf::TestScreen::Blue );
                         testWin.display();
-                        Sleep( 500 ); // give Kinect time to get image w/ test pattern
-                        projectorKinectPtr->processImage( Kinect::Blue );
+                        Sleep( 100 ); // give Kinect time to get image w/ test pattern
+                        projectorKinectPtr->processCalib( Kinect::Blue );
 
-                        projectorKinectPtr->combineProcessedImages();
+                        projectorKinectPtr->combineCalibImages();
 
                         // TODO process Kinect image to find location of Kinect in 3D space
 
@@ -220,23 +254,29 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
 
             case IDC_STREAM_TOGGLE_BUTTON: {
                 if ( projectorKinectPtr != NULL ) {
-                    if ( projectorKinectPtr->isConnected() ) {
-                        projectorKinectPtr->stopStream();
+                    // If button was pressed from RGB display window
+                    if ( Handle == mainWindow ) {
+                        if ( projectorKinectPtr->isVideoStreamRunning() ) {
+                            projectorKinectPtr->stopVideoStream();
+                        }
+                        else {
+                            projectorKinectPtr->startVideoStream();
+                        }
                     }
-                    else {
-                        projectorKinectPtr->startStream();
+
+                    // If button was pressed from depth display window
+                    if ( Handle == depthWindow ) {
+                        if ( projectorKinectPtr->isDepthStreamRunning() ) {
+                            projectorKinectPtr->stopDepthStream();
+                        }
+                        else {
+                            projectorKinectPtr->startDepthStream();
+                        }
                     }
                 }
 
                 break;
             }
-        }
-        break;
-    }
-
-    case WM_MOVING: {
-        if ( projectorKinectPtr != NULL ) {
-            projectorKinectPtr->display( Handle , 0 , 0 );
         }
 
         break;
@@ -244,7 +284,7 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
 
     case WM_CLOSE: {
         isOpen = false;
-        projectorKinectPtr->stopStream();
+
         break;
     }
 

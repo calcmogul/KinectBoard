@@ -37,46 +37,62 @@ public:
     Kinect();
     virtual ~Kinect();
 
-    // Starts image stream from Kinect
-    void startStream();
+    // Starts video stream from Kinect
+    void startVideoStream();
 
-    // Stops image stream from Kinect
-    void stopStream();
+    // Starts depth stream from Kinect
+    void startDepthStream();
 
-    /* Returns true if there is a Kinect connected to the USB port and
-     * available to use
-     */
-    bool isConnected();
+    // Stops video stream from Kinect
+    void stopVideoStream();
+
+    // Stops depth stream from Kinect
+    void stopDepthStream();
+
+    // Returns true if the rgb image stream is running
+    bool isVideoStreamRunning();
+
+    // Returns true if the depth image stream is running
+    bool isDepthStreamRunning();
+
+    // Displays most recently received RGB image
+    void displayVideo( HWND window , int x , int y );
+
+    // Displays most recently processed depth image
+    void displayDepth( HWND window , int x , int y );
 
     /* Processes the image stored in the internal buffer
      * colorWanted determines what color to filter
      */
-    void processImage( ProcColor colorWanted );
+    void processCalib( ProcColor colorWanted );
 
     /* Combines the red, green, and blue processed images with bitwise and
      * Stores the result in m_cvImage
      */
-    void combineProcessedImages();
-
-    /* Displays the most recently received image in the given window at the
-     * given coordinates
-     */
-    void display( HWND window , int x , int y );
+    void combineCalibImages();
 
 protected:
-    sf::Mutex m_imageMutex;
-    sf::Mutex m_displayMutex;
+    sf::Mutex m_vidImageMutex;
+    sf::Mutex m_vidDisplayMutex;
 
-    // Called when a new image is received (swaps the image buffer)
-    static void newFrame( struct nstream_t* streamObject , void* classObject );
+    sf::Mutex m_depthImageMutex;
+    sf::Mutex m_depthDisplayMutex;
+
+    // Called when a new video image is received (swaps the image buffer)
+    static void newVideoFrame( struct nstream_t* streamObject , void* classObject );
+
+    // Called when a new depth image is received (swaps the image buffer)
+    static void newDepthFrame( struct nstream_t* streamObject , void* classObject );
 
 private:
     struct knt_inst_t* m_kinect;
 
-    HBITMAP m_displayImage;
+    HBITMAP m_vidImage;
+    HBITMAP m_depthImage;
 
     // OpenCV variables
-    IplImage* m_cvImage;
+    IplImage* m_cvVidImage;
+    IplImage* m_cvDepthImage;
 
     // Holds components of red calibration image
     IplImage* m_red1;
@@ -105,6 +121,11 @@ private:
     IplImage* m_redCalib;
     IplImage* m_greenCalib;
     IplImage* m_blueCalib;
+
+    // Displays the given image in the given window at the given coordinates
+    void display( HWND window , int x , int y , HBITMAP image , sf::Mutex& displayMutex );
+
+    static double rawDepthToMeters( unsigned short depthValue );
 };
 
 #endif // KINECT_HPP

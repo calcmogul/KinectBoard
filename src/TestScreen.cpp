@@ -12,11 +12,11 @@
 
 namespace sf {
 
-TestScreen::TestScreen() : RenderWindow() , m_window( NULL ) , m_borderColor( Red ) {
+TestScreen::TestScreen() : RenderWindow() , m_window( NULL ) , m_cursor( NULL ) , m_borderColor( Red ) {
 
 }
 
-TestScreen::TestScreen( const char* className , HWND parentWin , HINSTANCE instance ) : RenderWindow() , m_borderColor( Red ) {
+TestScreen::TestScreen( const char* className , HWND parentWin , HINSTANCE instance ) : RenderWindow() , m_cursor( NULL ) , m_borderColor( Red ) {
     m_window = CreateWindowEx( 0 ,
             className ,
             "" ,
@@ -31,6 +31,9 @@ TestScreen::TestScreen( const char* className , HWND parentWin , HINSTANCE insta
             NULL );
 
     create( m_window );
+
+    // Prevent mouse cursor covering up pattern by making it invisible
+    SetCursor( NULL );
 }
 
 TestScreen::~TestScreen() {
@@ -53,9 +56,6 @@ void TestScreen::display() {
     else if ( m_borderColor == Blue ) {
         outlineColor.b = 255;
     }
-
-    // keep mouse from covering up pattern
-    setMouseCursorVisible( false );
 
     /* ===== Create and draw the calibration graphic ===== */
     // Construct pixel data

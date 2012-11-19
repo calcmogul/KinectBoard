@@ -6,19 +6,30 @@
 //=============================================================================
 
 #include <cstring>
+#include <cstdlib>
 #include "Kinect.hpp"
 
 #include <opencv2/core/core_c.h>
 #include <opencv2/imgproc/imgproc_c.h>
 #include <opencv2/highgui/highgui_c.h>
 
-#include <SFML/Graphics/Image.hpp>
-#include <iostream> // TODO Remove me
+Kinect::Kinect() : m_vidImage( NULL ) , m_depthImage( NULL ) {
+    m_kinect = knt_init();
 
-Kinect::Kinect() : m_kinect( NULL ) , m_displayImage( NULL ) {
-    CvSize imageSize = { ImageVars::Width , ImageVars::Height };
-    m_cvImage = cvCreateImage( imageSize , 8 , 4 );
-    m_cvImage->imageData = static_cast<char*>( std::malloc( ImageVars::Width * ImageVars::Height * 4 ) );
+    if ( m_kinect != NULL ) {
+        m_kinect->rgb->newframe = newVideoFrame;
+        m_kinect->rgb->callbackarg = this;
+
+        m_kinect->depth->newframe = newDepthFrame;
+        m_kinect->depth->callbackarg = this;
+    }
+
+    CvSize imageSize = { static_cast<int>(ImageVars::width) , static_cast<int>(ImageVars::height) };
+    m_cvVidImage = cvCreateImage( imageSize , 8 , 4 );
+    m_cvVidImage->imageData = static_cast<char*>( std::malloc( ImageVars::width * ImageVars::height * 4 ) );
+
+    m_cvDepthImage = cvCreateImage( imageSize , 8 , 4 );
+    m_cvDepthImage->imageData = static_cast<char*>( std::malloc( ImageVars::width * ImageVars::height * 4 ) );
 
     m_red1 = cvCreateImage( imageSize , 8 , 1 );
     m_green1 = cvCreateImage( imageSize , 8 , 1 );
@@ -44,13 +55,30 @@ Kinect::Kinect() : m_kinect( NULL ) , m_displayImage( NULL ) {
 }
 
 Kinect::~Kinect() {
-    stopStream();
+    stopVideoStream();
+    stopDepthStream();
 
-    m_imageMutex.lock();
-    std::free( m_cvImage->imageData );
-    m_imageMutex.unlock();
+    if ( m_kinect != NULL ) {
+        knt_destroy( m_kinect );
 
-    cvReleaseImage( &m_cvImage );
+        // wait for Kinect thread to close before destroying instance
+        while ( m_kinect->threadrunning == 1 ) {
+            Sleep( 100 );
+        }
+
+        m_kinect = NULL;
+    }
+
+    m_vidImageMutex.lock();
+    std::free( m_cvVidImage->imageData );
+    m_vidImageMutex.unlock();
+
+    m_depthImageMutex.lock();
+    std::free( m_cvDepthImage->imageData );
+    m_depthImageMutex.unlock();
+
+    cvReleaseImage( &m_cvVidImage );
+    cvReleaseImage( &m_cvDepthImage );
 
     cvReleaseImage( &m_red1 );
     cvReleaseImage( &m_green1 );
@@ -75,56 +103,90 @@ Kinect::~Kinect() {
     cvReleaseImage( &m_blueCalib );
 }
 
-void Kinect::startStream() {
-    // Initialize Kinect
+void Kinect::startVideoStream() {
+    // Initialize Kinect if needed
     if ( m_kinect == NULL ) {
         m_kinect = knt_init();
-    }
 
-    // If the Kinect instance is valid, start the rgb image stream
-    if ( m_kinect != NULL ) {
-        m_kinect->rgb->newframe = newFrame;
-
-        m_kinect->rgb->callbackarg = this;
-        m_kinect->rgb->startstream( m_kinect->rgb );
-    }
-}
-
-void Kinect::stopStream() {
-    // Stop the Kinect stream if it's running
-    if ( m_kinect != NULL ) {
-        knt_destroy( m_kinect );
-
-        // wait for Kinect thread to close before destroying instance
-        while ( m_kinect->threadrunning == 1 ) {
-            Sleep( 100 );
+        if ( m_kinect != NULL ) {
+            m_kinect->rgb->newframe = newVideoFrame;
+            m_kinect->rgb->callbackarg = this;
         }
-
-        m_kinect = NULL;
     }
-}
 
-bool Kinect::isConnected() {
-    bool isConnected = false;
-
-    // Returns true if m_kinect is initialized
+    // If the Kinect instance is valid
     if ( m_kinect != NULL ) {
-        pthread_mutex_lock( &m_kinect->threadrunning_mutex );
-
-        isConnected = ( m_kinect->threadrunning == 1 );
-
-        pthread_mutex_unlock( &m_kinect->threadrunning_mutex );
+        // If rgb image stream is down, start it
+        if ( m_kinect->rgb->state == NSTREAM_DOWN ) {
+            knt_startstream( m_kinect->rgb );
+        }
     }
-
-    return isConnected;
 }
 
-void Kinect::processImage( ProcColor colorWanted ) {
-    if ( isConnected() ) {
+void Kinect::startDepthStream() {
+    // Initialize Kinect if needed
+    if ( m_kinect == NULL ) {
+        m_kinect = knt_init();
+
+        if ( m_kinect != NULL ) {
+            m_kinect->depth->newframe = newDepthFrame;
+            m_kinect->depth->callbackarg = this;
+        }
+    }
+
+    // If the Kinect instance is valid
+    if ( m_kinect != NULL ) {
+        // If depth image stream is down, start it
+        if ( m_kinect->depth->state == NSTREAM_DOWN ) {
+            knt_startstream( m_kinect->depth );
+        }
+    }
+}
+
+void Kinect::stopVideoStream() {
+    // If the Kinect instance is valid, stop the rgb image stream if it's running
+    if ( m_kinect != NULL ) {
+        knt_rgb_stopstream( m_kinect->rgb );
+    }
+}
+
+void Kinect::stopDepthStream() {
+    // If the Kinect instance is valid, stop the depth image stream if it's running
+    if ( m_kinect != NULL ) {
+        knt_depth_stopstream( m_kinect->depth );
+    }
+}
+
+bool Kinect::isVideoStreamRunning() {
+    if ( m_kinect != NULL ) {
+        return ( m_kinect->rgb->state == NSTREAM_UP );
+    }
+
+    return false;
+}
+
+bool Kinect::isDepthStreamRunning() {
+    if ( m_kinect != NULL ) {
+        return ( m_kinect->depth->state == NSTREAM_UP );
+    }
+
+    return false;
+}
+
+void Kinect::displayVideo( HWND window , int x , int y ) {
+    display( window , x , y , m_vidImage , m_vidDisplayMutex );
+}
+
+void Kinect::displayDepth( HWND window , int x , int y ) {
+    display( window , x , y , m_depthImage , m_depthDisplayMutex );
+}
+
+void Kinect::processCalib( ProcColor colorWanted ) {
+    if ( isVideoStreamRunning() ) {
         // Split image into individual channels
-        m_imageMutex.lock();
-        cvSplit( m_cvImage , m_red1 , m_green1 , m_blue1 , NULL );
-        m_imageMutex.unlock();
+        m_vidImageMutex.lock();
+        cvSplit( m_cvVidImage , m_red1 , m_green1 , m_blue1 , NULL );
+        m_vidImageMutex.unlock();
 
         // Filter out all but color requested
         if ( colorWanted == Red ) {
@@ -164,35 +226,90 @@ void Kinect::processImage( ProcColor colorWanted ) {
     }
 }
 
-void Kinect::combineProcessedImages() {
-    if ( isConnected() ) {
+void Kinect::combineCalibImages() {
+    if ( isVideoStreamRunning() ) {
         cvAnd( m_redCalib , m_greenCalib , m_imageAnd1 , NULL );
         cvAnd( m_imageAnd1 , m_blueCalib , m_imageAnd2 , NULL );
 
-        m_imageMutex.lock();
-        m_displayMutex.lock();
-        m_displayImage = CreateBitmap( ImageVars::Width , ImageVars::Height , 1 , 32 , m_imageAnd2->imageData );
-        m_displayMutex.unlock();
-        m_imageMutex.unlock();
+        m_vidImageMutex.lock();
+        m_vidDisplayMutex.lock();
+        m_vidImage = CreateBitmap( ImageVars::width , ImageVars::height , 1 , 32 , m_imageAnd2->imageData );
+        m_vidDisplayMutex.unlock();
+        m_vidImageMutex.unlock();
     }
 }
 
-void Kinect::display( HWND window , int x , int y ) {
-    m_displayMutex.lock();
+void Kinect::newVideoFrame( struct nstream_t* streamObject , void* classObject ) {
+    Kinect* kinectPtr = reinterpret_cast<Kinect*>( classObject );
 
-    if ( m_displayImage != NULL ) {
+    kinectPtr->m_vidImageMutex.lock();
+
+    char* pxlBuf = kinectPtr->m_kinect->rgb->buf;
+
+    /* ===== Convert RGB to BGRA before displaying the image ===== */
+    /* Swap R and B because Win32 expects the color components in the
+     * opposite order they are currently in
+     */
+
+    for ( unsigned int startI = 0 , endI = 0 ; endI < ImageVars::width * ImageVars::height * 4 ; startI += 3 , endI += 4 ) {
+        kinectPtr->m_cvVidImage->imageData[endI] = pxlBuf[startI+2];
+        kinectPtr->m_cvVidImage->imageData[endI+1] = pxlBuf[startI+1];
+        kinectPtr->m_cvVidImage->imageData[endI+2] = pxlBuf[startI];
+    }
+    /* =========================================================== */
+
+    // Make HBITMAP from pixel array
+    kinectPtr->m_vidDisplayMutex.lock();
+    kinectPtr->m_vidImage = CreateBitmap( ImageVars::width , ImageVars::height , 1 , 32 , kinectPtr->m_cvVidImage->imageData );
+    kinectPtr->m_vidDisplayMutex.unlock();
+
+    kinectPtr->m_vidImageMutex.unlock();
+}
+
+void Kinect::newDepthFrame( struct nstream_t* streamObject , void* classObject ) {
+    Kinect* kinectPtr = reinterpret_cast<Kinect*>( classObject );
+
+    kinectPtr->m_depthImageMutex.lock();
+
+    char* pxlBuf = kinectPtr->m_kinect->depth->buf;
+
+    double depth = 0.0;
+    unsigned short depthVal = 0;
+    for ( unsigned int index = 0 ; index < ImageVars::width * ImageVars::height ; index++ ) {
+        depthVal = (unsigned short) *((unsigned short*)(pxlBuf + 2 * index));
+
+        depth = Kinect::rawDepthToMeters( depthVal );
+
+        // Assign values from 0 to 5 meters with a shade from black to white
+        kinectPtr->m_cvDepthImage->imageData[4 * index + 0] = 255.f * depth / 5.f;
+        kinectPtr->m_cvDepthImage->imageData[4 * index + 1] = 255.f * depth / 5.f;
+        kinectPtr->m_cvDepthImage->imageData[4 * index + 2] = 255.f * depth / 5.f;
+    }
+
+    // Make HBITMAP from pixel array
+    kinectPtr->m_depthDisplayMutex.lock();
+    kinectPtr->m_depthImage = CreateBitmap( ImageVars::width , ImageVars::height , 1 , 32 , kinectPtr->m_cvDepthImage->imageData );
+    kinectPtr->m_depthDisplayMutex.unlock();
+
+    kinectPtr->m_depthImageMutex.unlock();
+}
+
+void Kinect::display( HWND window , int x , int y , HBITMAP image , sf::Mutex& displayMutex ) {
+    displayMutex.lock();
+
+    if ( image != NULL ) {
         // Create offscreen DC for image to go on
         HDC imageHdc = CreateCompatibleDC( NULL );
 
         // Put the image into the offscreen DC and save the old one
-        HBITMAP imageBackup = static_cast<HBITMAP>( SelectObject( imageHdc , m_displayImage ) );
+        HBITMAP imageBackup = static_cast<HBITMAP>( SelectObject( imageHdc , image ) );
 
         // Get DC of window to which to draw
         HDC windowHdc = GetDC( window );
 
         // Load image to real BITMAP just to retrieve its dimensions
         BITMAP tempBMP;
-        GetObject( m_displayImage , sizeof( BITMAP ) , &tempBMP );
+        GetObject( image , sizeof( BITMAP ) , &tempBMP );
 
         // Copy image from offscreen DC to window's DC
         BitBlt( windowHdc , x , y , tempBMP.bmWidth , tempBMP.bmHeight , imageHdc , 0 , 0 , SRCCOPY );
@@ -207,32 +324,14 @@ void Kinect::display( HWND window , int x , int y ) {
         DeleteDC( imageHdc );
     }
 
-    m_displayMutex.unlock();
+    displayMutex.unlock();
 }
 
-void Kinect::newFrame( struct nstream_t* streamObject , void* classObject ) {
-    Kinect* kinectPtr = reinterpret_cast<Kinect*>( classObject );
-
-    kinectPtr->m_imageMutex.lock();
-
-    char* pxlBuf = kinectPtr->m_kinect->rgb->buf;
-
-    /* ===== Convert RGB to BGRA before displaying the image ===== */
-    /* Swap R and B because Win32 expects the color components in the
-     * opposite order they are currently in
-     */
-
-    for ( unsigned int startI = 0 , endI = 0 ; endI < ImageVars::Width * ImageVars::Height * 4 ; startI += 3 , endI += 4 ) {
-        kinectPtr->m_cvImage->imageData[endI] = pxlBuf[startI+2];
-        kinectPtr->m_cvImage->imageData[endI+1] = pxlBuf[startI+1];
-        kinectPtr->m_cvImage->imageData[endI+2] = pxlBuf[startI];
+double Kinect::rawDepthToMeters( unsigned short depthValue ) {
+    if ( depthValue < 2047 ) {
+        return 1.f /
+                (static_cast<double>(depthValue) * -0.0030711016 + 3.3309495161 );
     }
-    /* =========================================================== */
 
-    // Make HBITMAP from pixel array
-    kinectPtr->m_displayMutex.lock();
-    kinectPtr->m_displayImage = CreateBitmap( ImageVars::Width , ImageVars::Height , 1 , 32 , kinectPtr->m_cvImage->imageData );
-    kinectPtr->m_displayMutex.unlock();
-
-    kinectPtr->m_imageMutex.unlock();
+    return 0.0;
 }

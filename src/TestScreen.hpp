@@ -38,6 +38,7 @@ public:
 
 private:
     HWND m_window;
+    HCURSOR m_cursor;
     ProcColor m_borderColor;
 };
 

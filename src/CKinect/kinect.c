@@ -92,8 +92,6 @@ void knt_depth_cb(freenect_device * dev, void *rgb, uint32_t timestamp)
     pthread_mutex_lock(&nstm->mutex);
 
     /* update timestamp: should we be using the provided one? */
-    /* gettimeofday(&curtime, &thistimezone); nstm->timestamp = curtime.tv_sec; 
-     */
     nstm->timestamp = timestamp;
 
     /* Swap buffers */
@@ -220,17 +218,6 @@ int knt_depth_stopstream(struct nstream_t *stream)
  */
 void knt_threadmain_abort(struct knt_inst_t *inst)
 {
-
-    /* Don't need to do this anymore */
-    /* 
-       if(inst->rgb->state != NSTREAM_DOWN){ inst->rgb->state = NSTREAM_DOWN;
-       if(inst->rgb->streamstopping){ inst->rgb->streamstopping(inst->rgb,
-       inst->rgb->callbackarg); } }
-
-       if(inst->depth->state != NSTREAM_DOWN){ inst->depth->state =
-       NSTREAM_DOWN; if(inst->depth->streamstopping){
-       inst->depth->streamstopping(inst->depth, inst->depth->callbackarg); } } */
-
     inst->threadrunning = 0;
     pthread_cond_broadcast(&inst->threadcond);
 
@@ -366,21 +353,8 @@ void *knt_threadmain(void *in)
     freenect_set_led(f_dev, LED_RED);
 
     /* Do the main loop */
-    while ((freenect_process_events(f_ctx) >= 0)
-           && inst->threadrunning == 1) {
-        /* usleep(500); */
-        /* process events */
-        /* printf("processed event\n"); */
+    while ( freenect_process_events(f_ctx) >= 0 && inst->threadrunning == 1 ) {
 
-        /* This doesn't work so well: */
-        /* 
-           gettimeofday(&curtime, &thistimezone);
-           pthread_mutex_lock(&inst->depth->mutex); if( nst->rgb->state ==
-           NSTREAM_UP && inst->rgb->timestamp != 0 && inst->rgb->timestamp + 2
-           < curtime.tv_sec ){ printf("timestamp: %d\ncurrent time: %d\n",
-           inst->rgb->timestamp, curtime.tv_sec); printf("looks like we aren't
-           getting any frames, bailing out...\n"); break; }
-           pthread_mutex_unlock(&inst->depth->mutex); */
     }
 
     /* Turn the LED blinking green */
@@ -391,7 +365,7 @@ void *knt_threadmain(void *in)
     knt_depth_stopstream(inst->depth);
 
     freenect_stop_video(f_dev);
-    //freenect_stop_depth(f_dev);
+    freenect_stop_depth(f_dev);
 
     freenect_close_device(f_dev);
     freenect_shutdown(f_ctx);
