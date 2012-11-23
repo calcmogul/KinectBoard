@@ -15,6 +15,8 @@
 
 #include "CKinect/kinect.h"
 #include "ImageVars.hpp"
+#include "ProcColor.hpp"
+#include <vector>
 
 #include <SFML/System/Mutex.hpp>
 
@@ -26,14 +28,8 @@
 
 typedef struct _IplImage IplImage;
 
-class Kinect {
+class Kinect : public Processing {
 public:
-    enum ProcColor {
-        Red = 0,
-        Green = 1,
-        Blue = 2
-    };
-
     Kinect();
     virtual ~Kinect();
 
@@ -64,12 +60,18 @@ public:
     /* Processes the image stored in the internal buffer
      * colorWanted determines what color to filter
      */
-    void processCalib( ProcColor colorWanted );
+    void processCalibImages( Processing::ProcColor colorWanted );
 
     /* Combines the red, green, and blue processed images with bitwise and
      * Stores the result in m_cvImage
      */
     void combineCalibImages();
+
+    // Adds color to calibration steps
+    void enableColor( ProcColor color );
+
+    // Removes color from calibration steps
+    void disableColor( ProcColor color );
 
 protected:
     sf::Mutex m_vidImageMutex;
@@ -94,33 +96,22 @@ private:
     IplImage* m_cvVidImage;
     IplImage* m_cvDepthImage;
 
-    // Holds components of red calibration image
-    IplImage* m_red1;
-    IplImage* m_green1;
-    IplImage* m_blue1;
+    // Calibration image storage (IplImage* is whole image)
+    std::vector<IplImage*> m_calibImages;
 
-    // Holds components of green calibration image
-    IplImage* m_red2;
-    IplImage* m_green2;
-    IplImage* m_blue2;
-
-    // Holds components of blue calibration image
-    IplImage* m_red3;
-    IplImage* m_green3;
-    IplImage* m_blue3;
+    // Holds components of calibration image currently being worked on
+    IplImage* m_redPart;
+    IplImage* m_greenPart;
+    IplImage* m_bluePart;
 
     // Used as temporary storage when bitwise-and'ing channels together
-    IplImage* m_channelAnd1;
-    IplImage* m_channelAnd2;
+    IplImage* m_channelAnd;
 
     // Used as temporary storage when bitwise-and'ing entire images together
-    IplImage* m_imageAnd1;
-    IplImage* m_imageAnd2;
+    IplImage* m_imageAnd;
 
-    // Calibration image storage
-    IplImage* m_redCalib;
-    IplImage* m_greenCalib;
-    IplImage* m_blueCalib;
+    // Stores which colored images to include in calibration
+    char m_enabledColors;
 
     // Displays the given image in the given window at the given coordinates
     void display( HWND window , int x , int y , HBITMAP image , sf::Mutex& displayMutex );

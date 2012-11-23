@@ -102,9 +102,11 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     /* =================================================== */
 
     Kinect projectorKinect;
-    projectorKinect.startVideoStream();
-    projectorKinect.startDepthStream();
     projectorKinectPtr = &projectorKinect;
+    projectorKinect.startVideoStream();
+    //projectorKinect.startDepthStream();
+    projectorKinect.enableColor( Kinect::Red );
+    projectorKinect.enableColor( Kinect::Blue );
 
     // Calibrate Kinect
     SendMessage( mainWindow , WM_COMMAND , IDC_RECALIBRATE_BUTTON , 0 );
@@ -151,10 +153,10 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
         }
 
 
-        //projectorKinect.processImage( Kinect::Red );
-        //projectorKinect.processImage( Kinect::Green );
-        //projectorKinect.processImage( Kinect::Blue );
-        //projectorKinect.combineProcessedImages();
+        //projectorKinect.processCalibImages( Kinect::Red );
+        //projectorKinect.processCalibImages( Kinect::Green );
+        //projectorKinect.processCalibImages( Kinect::Blue );
+        //projectorKinect.combineCalibImages();
         projectorKinect.displayVideo( mainWindow , 0 , 0 );
         projectorKinect.displayDepth( depthWindow , 0 , 0 );
 
@@ -226,20 +228,16 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
                     if ( projectorKinectPtr->isVideoStreamRunning() ) {
                         sf::TestScreen testWin( "KinectBoard" , Handle , NULL );
 
-                        testWin.setColor( sf::TestScreen::Red );
+                        testWin.setColor( Processing::Red );
                         testWin.display();
-                        Sleep( 100 ); // give Kinect time to get image w/ test pattern
-                        projectorKinectPtr->processCalib( Kinect::Red );
+                        Sleep( 600 ); // give Kinect time to get image w/ test pattern
 
-                        testWin.setColor( sf::TestScreen::Green );
-                        testWin.display();
-                        Sleep( 100 ); // give Kinect time to get image w/ test pattern
-                        projectorKinectPtr->processCalib( Kinect::Green );
+                        projectorKinectPtr->processCalibImages( Processing::Red );
 
-                        testWin.setColor( sf::TestScreen::Blue );
+                        testWin.setColor( Processing::Blue );
                         testWin.display();
-                        Sleep( 100 ); // give Kinect time to get image w/ test pattern
-                        projectorKinectPtr->processCalib( Kinect::Blue );
+                        Sleep( 600 ); // give Kinect time to get image w/ test pattern
+                        projectorKinectPtr->processCalibImages( Processing::Blue );
 
                         projectorKinectPtr->combineCalibImages();
 

@@ -12,23 +12,18 @@
 #include <windows.h>
 
 #include <SFML/Graphics/RenderWindow.hpp>
+#include "ProcColor.hpp"
 
 namespace sf {
 
-class TestScreen : public sf::RenderWindow {
+class TestScreen : public sf::RenderWindow , public Processing {
 public:
-    enum ProcColor {
-        Red = 0,
-        Green = 1,
-        Blue = 2
-    };
-
     TestScreen();
     TestScreen( const char* className , HWND parentWin , HINSTANCE instance );
 
     virtual ~TestScreen();
 
-    void setColor( ProcColor borderColor );
+    void setColor( Processing::ProcColor borderColor );
 
     // Displays test pattern with previously set border color
     void display();

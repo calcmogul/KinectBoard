@@ -9,6 +9,8 @@
 #include <cstdlib>
 #include "Kinect.hpp"
 
+#include <iostream> // TODO Remove me
+
 #include <opencv2/core/core_c.h>
 #include <opencv2/imgproc/imgproc_c.h>
 #include <opencv2/highgui/highgui_c.h>
@@ -31,27 +33,20 @@ Kinect::Kinect() : m_vidImage( NULL ) , m_depthImage( NULL ) {
     m_cvDepthImage = cvCreateImage( imageSize , 8 , 4 );
     m_cvDepthImage->imageData = static_cast<char*>( std::malloc( ImageVars::width * ImageVars::height * 4 ) );
 
-    m_red1 = cvCreateImage( imageSize , 8 , 1 );
-    m_green1 = cvCreateImage( imageSize , 8 , 1 );
-    m_blue1 = cvCreateImage( imageSize , 8 , 1 );
+    m_redPart = cvCreateImage( imageSize , 8 , 1 );
+    m_greenPart = cvCreateImage( imageSize , 8 , 1 );
+    m_bluePart = cvCreateImage( imageSize , 8 , 1 );
 
-    m_red2 = cvCreateImage( imageSize , 8 , 1 );
-    m_green2 = cvCreateImage( imageSize , 8 , 1 );
-    m_blue2 = cvCreateImage( imageSize , 8 , 1 );
+    m_channelAnd = cvCreateImage( imageSize , 8 , 1 );
 
-    m_red3 = cvCreateImage( imageSize , 8 , 1 );
-    m_green3 = cvCreateImage( imageSize , 8 , 1 );
-    m_blue3 = cvCreateImage( imageSize , 8 , 1 );
+    m_imageAnd = cvCreateImage( imageSize , 8 , 4 );
 
-    m_channelAnd1 = cvCreateImage( imageSize , 8 , 1 );
-    m_channelAnd2 = cvCreateImage( imageSize , 8 , 1 );
+    m_enabledColors = 0x00;
 
-    m_imageAnd1 = cvCreateImage( imageSize , 8 , 3 );
-    m_imageAnd2 = cvCreateImage( imageSize , 8 , 3 );
-
-    m_redCalib = cvCreateImage( imageSize , 8 , 3 );
-    m_greenCalib = cvCreateImage( imageSize , 8 , 3 );
-    m_blueCalib = cvCreateImage( imageSize , 8 , 3 );
+    for ( unsigned int index = 0 ; index < ProcColor::Size ; index++ ) {
+        m_calibImages.push_back( new IplImage );
+        m_calibImages.at( m_calibImages.size() - 1 ) = cvCreateImage( imageSize , 8 , 4 );
+    }
 }
 
 Kinect::~Kinect() {
@@ -80,27 +75,17 @@ Kinect::~Kinect() {
     cvReleaseImage( &m_cvVidImage );
     cvReleaseImage( &m_cvDepthImage );
 
-    cvReleaseImage( &m_red1 );
-    cvReleaseImage( &m_green1 );
-    cvReleaseImage( &m_blue1 );
+    cvReleaseImage( &m_redPart );
+    cvReleaseImage( &m_greenPart );
+    cvReleaseImage( &m_bluePart );
 
-    cvReleaseImage( &m_red2 );
-    cvReleaseImage( &m_green2 );
-    cvReleaseImage( &m_blue2 );
+    cvReleaseImage( &m_channelAnd );
 
-    cvReleaseImage( &m_red3 );
-    cvReleaseImage( &m_green3 );
-    cvReleaseImage( &m_blue3 );
+    cvReleaseImage( &m_imageAnd );
 
-    cvReleaseImage( &m_channelAnd1 );
-    cvReleaseImage( &m_channelAnd2 );
-
-    cvReleaseImage( &m_imageAnd1 );
-    cvReleaseImage( &m_imageAnd2 );
-
-    cvReleaseImage( &m_redCalib );
-    cvReleaseImage( &m_greenCalib );
-    cvReleaseImage( &m_blueCalib );
+    for ( unsigned int index = m_calibImages.size() ; index > 0 ; index-- ) {
+        cvReleaseImage( &m_calibImages.at( index - 1 ) );
+    }
 }
 
 void Kinect::startVideoStream() {
@@ -181,62 +166,81 @@ void Kinect::displayDepth( HWND window , int x , int y ) {
     display( window , x , y , m_depthImage , m_depthDisplayMutex );
 }
 
-void Kinect::processCalib( ProcColor colorWanted ) {
+void Kinect::processCalibImages( Processing::ProcColor colorWanted ) {
     if ( isVideoStreamRunning() ) {
         // Split image into individual channels
         m_vidImageMutex.lock();
-        cvSplit( m_cvVidImage , m_red1 , m_green1 , m_blue1 , NULL );
+        cvSplit( m_cvVidImage , m_bluePart , m_greenPart , m_redPart , NULL );
         m_vidImageMutex.unlock();
 
         // Filter out all but color requested
         if ( colorWanted == Red ) {
-            cvThreshold( m_red1 , m_red1 , 200 , 255 , CV_THRESH_BINARY );
+            cvThreshold( m_redPart , m_redPart , 140 , 255 , CV_THRESH_BINARY );
         }
         else {
-            cvThreshold( m_red1 , m_red1 , 55 , 255 , CV_THRESH_BINARY_INV );
+            cvThreshold( m_redPart , m_redPart , 40 , 255 , CV_THRESH_BINARY_INV );
         }
 
         if ( colorWanted == Green ) {
-            cvThreshold( m_green1 , m_green1 , 200 , 255 , CV_THRESH_BINARY );
+            cvThreshold( m_greenPart , m_greenPart , 140 , 255 , CV_THRESH_BINARY );
         }
         else {
-            cvThreshold( m_green1 , m_green1 , 55 , 255 , CV_THRESH_BINARY_INV );
+            cvThreshold( m_greenPart , m_greenPart , 40 , 255 , CV_THRESH_BINARY_INV );
         }
 
         if ( colorWanted == Blue ) {
-            cvThreshold( m_blue1 , m_blue1 , 200 , 255 , CV_THRESH_BINARY );
+            cvThreshold( m_bluePart , m_bluePart , 140 , 255 , CV_THRESH_BINARY );
         }
         else {
-            cvThreshold( m_blue1 , m_blue1 , 55 , 255 , CV_THRESH_BINARY_INV );
+            cvThreshold( m_bluePart , m_bluePart , 40 , 255 , CV_THRESH_BINARY_INV );
         }
 
         // Combine all colors to make sure white isn't included in the final picture
-        cvAnd( m_red1 , m_green1 , m_channelAnd1 , NULL );
-        cvAnd( m_channelAnd1 , m_blue1 , m_channelAnd2 , NULL );
+        cvAnd( m_redPart , m_greenPart , m_channelAnd , NULL );
+        cvAnd( m_channelAnd , m_bluePart , m_channelAnd , NULL );
+        cvMerge( m_channelAnd , m_channelAnd , m_channelAnd , NULL , m_calibImages[colorWanted] );
 
-        if ( colorWanted == Red ) {
-            cvMerge( m_channelAnd2 , m_channelAnd2 , m_channelAnd2 , NULL , m_redCalib );
+        m_vidImageMutex.lock();
+        m_vidDisplayMutex.lock();
+        if ( colorWanted == Blue ) {
+            //m_vidImage = CreateBitmap( ImageVars::width , ImageVars::height , 1 , 32 , m_calibImages[colorWanted]->imageData );
         }
-        else if ( colorWanted == Green ) {
-            cvMerge( m_channelAnd2 , m_channelAnd2 , m_channelAnd2 , NULL , m_greenCalib );
-        }
-        else if ( colorWanted == Blue ) {
-            cvMerge( m_channelAnd2 , m_channelAnd2 , m_channelAnd2 , NULL , m_blueCalib );
-        }
+        m_vidDisplayMutex.unlock();
+        m_vidImageMutex.unlock();
     }
 }
 
 void Kinect::combineCalibImages() {
     if ( isVideoStreamRunning() ) {
-        cvAnd( m_redCalib , m_greenCalib , m_imageAnd1 , NULL );
-        cvAnd( m_imageAnd1 , m_blueCalib , m_imageAnd2 , NULL );
+        std::cout << "Combine\n";
+        static CvScalar whiteImage = cvScalar( 255 , 255 , 255 , 255 );
+
+        /* Makes all pixels from first calibration image get copied to AND
+         * buffer upon first loop iteration
+         */
+        cvSet( m_imageAnd , whiteImage , NULL );
+
+        for ( unsigned int index = 0 ; index < ProcColor::Size ; index++ ) {
+            // If color is enabled
+            if ( m_enabledColors | ( 1 << index ) ) {
+                cvAnd( m_imageAnd , m_calibImages[index] , m_imageAnd , NULL );
+            }
+        }
 
         m_vidImageMutex.lock();
         m_vidDisplayMutex.lock();
-        m_vidImage = CreateBitmap( ImageVars::width , ImageVars::height , 1 , 32 , m_imageAnd2->imageData );
+        m_vidImage = CreateBitmap( ImageVars::width , ImageVars::height , 1 , 32 , m_imageAnd->imageData );
         m_vidDisplayMutex.unlock();
         m_vidImageMutex.unlock();
     }
+}
+
+void Kinect::enableColor( ProcColor color ) {
+    m_enabledColors |= ( 1 << color );
+}
+
+void Kinect::disableColor( ProcColor color ) {
+    m_enabledColors &= ~( 1 << color );
 }
 
 void Kinect::newVideoFrame( struct nstream_t* streamObject , void* classObject ) {
@@ -259,9 +263,9 @@ void Kinect::newVideoFrame( struct nstream_t* streamObject , void* classObject )
     /* =========================================================== */
 
     // Make HBITMAP from pixel array
-    kinectPtr->m_vidDisplayMutex.lock();
+    /*kinectPtr->m_vidDisplayMutex.lock();
     kinectPtr->m_vidImage = CreateBitmap( ImageVars::width , ImageVars::height , 1 , 32 , kinectPtr->m_cvVidImage->imageData );
-    kinectPtr->m_vidDisplayMutex.unlock();
+    kinectPtr->m_vidDisplayMutex.unlock();*/
 
     kinectPtr->m_vidImageMutex.unlock();
 }
