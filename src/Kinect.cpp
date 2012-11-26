@@ -65,13 +65,8 @@ Kinect::~Kinect() {
         m_kinect = NULL;
     }
 
-    if ( m_vidImage != NULL ) {
-        DeleteObject( m_vidImage );
-    }
-
-    if ( m_depthImage != NULL ) {
-        DeleteObject( m_depthImage );
-    }
+    DeleteObject( m_vidImage );
+    DeleteObject( m_depthImage );
 
     m_vidImageMutex.lock();
     std::free( m_cvVidImage->imageData );
@@ -273,9 +268,7 @@ void Kinect::combineCalibImages() {
         m_vidImageMutex.lock();
         m_vidDisplayMutex.lock();
 
-        if ( m_vidImage != NULL ) {
-            DeleteObject( m_vidImage );
-        }
+        DeleteObject( m_vidImage ); // free previous image if there is one
         m_vidImage = CreateBitmap( ImageVars::width , ImageVars::height , 1 , 32 , m_imageAnd->imageData );
 
         m_vidDisplayMutex.unlock();
@@ -313,9 +306,7 @@ void Kinect::newVideoFrame( struct nstream_t* streamObject , void* classObject )
     // Make HBITMAP from pixel array
     kinectPtr->m_vidDisplayMutex.lock();
 
-    if ( kinectPtr->m_vidImage != NULL ) {
-        DeleteObject( kinectPtr->m_vidImage );
-    }
+    DeleteObject( kinectPtr->m_vidImage ); // free previous image if there is one
     kinectPtr->m_vidImage = CreateBitmap( ImageVars::width , ImageVars::height , 1 , 32 , kinectPtr->m_cvVidImage->imageData );
 
     kinectPtr->m_vidDisplayMutex.unlock();
@@ -346,9 +337,7 @@ void Kinect::newDepthFrame( struct nstream_t* streamObject , void* classObject )
     // Make HBITMAP from pixel array
     kinectPtr->m_depthDisplayMutex.lock();
 
-    if ( kinectPtr->m_depthImage != NULL ) {
-        DeleteObject( kinectPtr->m_depthImage );
-    }
+    DeleteObject( kinectPtr->m_depthImage ); // free previous image if there is one
     kinectPtr->m_depthImage = CreateBitmap( ImageVars::width , ImageVars::height , 1 , 32 , kinectPtr->m_cvDepthImage->imageData );
 
     kinectPtr->m_depthDisplayMutex.unlock();
