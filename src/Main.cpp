@@ -255,6 +255,7 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
                     // If button was pressed from RGB display window
                     if ( Handle == mainWindow ) {
                         if ( projectorKinectPtr->isVideoStreamRunning() ) {
+                            projectorKinectPtr->saveVideo( "white.png" );
                             projectorKinectPtr->stopVideoStream();
                         }
                         else {

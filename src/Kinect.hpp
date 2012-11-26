@@ -17,6 +17,7 @@
 #include "ImageVars.hpp"
 #include "ProcColor.hpp"
 #include <vector>
+#include <string>
 
 #include <SFML/System/Mutex.hpp>
 
@@ -45,7 +46,7 @@ public:
     // Stops depth stream from Kinect
     void stopDepthStream();
 
-    // Returns true if the rgb image stream is running
+    // Returns true if the RGB image stream is running
     bool isVideoStreamRunning();
 
     // Returns true if the depth image stream is running
@@ -56,6 +57,12 @@ public:
 
     // Displays most recently processed depth image
     void displayDepth( HWND window , int x , int y );
+
+    // Saves most recently received RGB image to file
+    bool saveVideo( const std::string& fileName ) const;
+
+    // Save most recently received depth image to file
+    bool saveDepth( const std::string& fileName ) const;
 
     /* Processes the image stored in the internal buffer
      * colorWanted determines what color to filter

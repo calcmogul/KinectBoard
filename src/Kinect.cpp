@@ -8,6 +8,7 @@
 #include <cstring>
 #include <cstdlib>
 #include "Kinect.hpp"
+#include <SFML/Graphics/Image.hpp>
 
 #include <iostream> // TODO Remove me
 
@@ -166,6 +167,40 @@ void Kinect::displayDepth( HWND window , int x , int y ) {
     display( window , x , y , m_depthImage , m_depthDisplayMutex );
 }
 
+bool Kinect::saveVideo( const std::string& fileName ) const {
+    unsigned char* imageData = (unsigned char*)std::malloc( ImageVars::width * ImageVars::height * 4 );
+
+    // Copy OpenCV BGR image to RGB array
+    for ( unsigned int i = 0 ; i < ImageVars::width * ImageVars::height * 4 ; i += 4 ) {
+        imageData[i+0] = m_cvVidImage->imageData[i+2];
+        imageData[i+1] = m_cvVidImage->imageData[i+1];
+        imageData[i+2] = m_cvVidImage->imageData[i+0];
+        imageData[i+3] = 255;
+    }
+
+    sf::Image imageBuffer;
+    imageBuffer.create( ImageVars::width , ImageVars::height , imageData );
+
+    return imageBuffer.saveToFile( fileName );
+}
+
+bool Kinect::saveDepth( const std::string& fileName ) const {
+    unsigned char* imageData = (unsigned char*)std::malloc( ImageVars::width * ImageVars::height * 4 );
+
+    // Copy OpenCV BGR image to RGB array
+    for ( unsigned int i = 0 ; i < ImageVars::width * ImageVars::height * 4 ; i += 4 ) {
+        imageData[i+0] = m_cvDepthImage->imageData[i+2];
+        imageData[i+1] = m_cvDepthImage->imageData[i+1];
+        imageData[i+2] = m_cvDepthImage->imageData[i+0];
+        imageData[i+3] = 255;
+    }
+
+    sf::Image imageBuffer;
+    imageBuffer.create( ImageVars::width , ImageVars::height , imageData );
+
+    return imageBuffer.saveToFile( fileName );
+}
+
 void Kinect::processCalibImages( Processing::ProcColor colorWanted ) {
     if ( isVideoStreamRunning() ) {
         // Split image into individual channels
@@ -229,7 +264,12 @@ void Kinect::combineCalibImages() {
 
         m_vidImageMutex.lock();
         m_vidDisplayMutex.lock();
+
+        if ( m_vidImage != NULL ) {
+            DeleteObject( m_vidImage );
+        }
         m_vidImage = CreateBitmap( ImageVars::width , ImageVars::height , 1 , 32 , m_imageAnd->imageData );
+
         m_vidDisplayMutex.unlock();
         m_vidImageMutex.unlock();
     }
@@ -263,9 +303,14 @@ void Kinect::newVideoFrame( struct nstream_t* streamObject , void* classObject )
     /* =========================================================== */
 
     // Make HBITMAP from pixel array
-    /*kinectPtr->m_vidDisplayMutex.lock();
+    kinectPtr->m_vidDisplayMutex.lock();
+
+    if ( kinectPtr->m_vidImage != NULL ) {
+        DeleteObject( kinectPtr->m_vidImage );
+    }
     kinectPtr->m_vidImage = CreateBitmap( ImageVars::width , ImageVars::height , 1 , 32 , kinectPtr->m_cvVidImage->imageData );
-    kinectPtr->m_vidDisplayMutex.unlock();*/
+
+    kinectPtr->m_vidDisplayMutex.unlock();
 
     kinectPtr->m_vidImageMutex.unlock();
 }
@@ -292,7 +337,12 @@ void Kinect::newDepthFrame( struct nstream_t* streamObject , void* classObject )
 
     // Make HBITMAP from pixel array
     kinectPtr->m_depthDisplayMutex.lock();
+
+    if ( kinectPtr->m_depthImage != NULL ) {
+        DeleteObject( kinectPtr->m_depthImage );
+    }
     kinectPtr->m_depthImage = CreateBitmap( ImageVars::width , ImageVars::height , 1 , 32 , kinectPtr->m_cvDepthImage->imageData );
+
     kinectPtr->m_depthDisplayMutex.unlock();
 
     kinectPtr->m_depthImageMutex.unlock();
