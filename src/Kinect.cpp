@@ -65,6 +65,14 @@ Kinect::~Kinect() {
         m_kinect = NULL;
     }
 
+    if ( m_vidImage != NULL ) {
+        DeleteObject( m_vidImage );
+    }
+
+    if ( m_depthImage != NULL ) {
+        DeleteObject( m_depthImage );
+    }
+
     m_vidImageMutex.lock();
     std::free( m_cvVidImage->imageData );
     m_vidImageMutex.unlock();
