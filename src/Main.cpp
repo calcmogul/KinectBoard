@@ -105,8 +105,8 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     projectorKinectPtr = &projectorKinect;
     projectorKinect.startVideoStream();
     //projectorKinect.startDepthStream();
-    projectorKinect.enableColor( Kinect::Red );
-    projectorKinect.enableColor( Kinect::Blue );
+    projectorKinect.enableColor( Processing::Red );
+    projectorKinect.enableColor( Processing::Blue );
 
     // Calibrate Kinect
     SendMessage( mainWindow , WM_COMMAND , IDC_RECALIBRATE_BUTTON , 0 );
@@ -231,17 +231,14 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
                         testWin.setColor( Processing::Red );
                         testWin.display();
                         Sleep( 600 ); // give Kinect time to get image w/ test pattern
-
-                        projectorKinectPtr->processCalibImages( Processing::Red );
+                        projectorKinectPtr->setCalibImage( Processing::Red );
 
                         testWin.setColor( Processing::Blue );
                         testWin.display();
                         Sleep( 600 ); // give Kinect time to get image w/ test pattern
-                        projectorKinectPtr->processCalibImages( Processing::Blue );
+                        projectorKinectPtr->setCalibImage( Processing::Blue );
 
-                        projectorKinectPtr->combineCalibImages();
-
-                        // TODO process Kinect image to find location of Kinect in 3D space
+                        projectorKinectPtr->calibrate();
 
                         testWin.close();
                     }

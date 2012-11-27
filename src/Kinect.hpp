@@ -18,6 +18,7 @@
 #include "ProcColor.hpp"
 #include <vector>
 #include <string>
+#include <opencv2/core/types_c.h>
 
 #include <SFML/System/Mutex.hpp>
 
@@ -64,15 +65,15 @@ public:
     // Save most recently received depth image to file
     bool saveDepth( const std::string& fileName ) const;
 
-    /* Processes the image stored in the internal buffer
-     * colorWanted determines what color to filter
-     */
-    void processCalibImages( Processing::ProcColor colorWanted );
+    // Stores current image as calibration image containing the given color
+    void setCalibImage( ProcColor colorWanted );
 
-    /* Combines the red, green, and blue processed images with bitwise and
-     * Stores the result in m_cvImage
+    /* Processes calibration images stored in internal buffer to find location
+     * of screen
      */
-    void combineCalibImages();
+    void calibrate();
+
+    void lookForCursors();
 
     // Adds color to calibration steps
     void enableColor( ProcColor color );
@@ -80,12 +81,17 @@ public:
     // Removes color from calibration steps
     void disableColor( ProcColor color );
 
+    // Returns true if there is a calibration image of the given color enabled
+    bool isEnabled( ProcColor color );
+
 protected:
     sf::Mutex m_vidImageMutex;
     sf::Mutex m_vidDisplayMutex;
 
     sf::Mutex m_depthImageMutex;
     sf::Mutex m_depthDisplayMutex;
+
+    CvSize m_imageSize;
 
     // Called when a new video image is received (swaps the image buffer)
     static void newVideoFrame( struct nstream_t* streamObject , void* classObject );
@@ -102,20 +108,14 @@ private:
     // OpenCV variables
     IplImage* m_cvVidImage;
     IplImage* m_cvDepthImage;
+    char* m_vidBuffer;
 
     // Calibration image storage (IplImage* is whole image)
     std::vector<IplImage*> m_calibImages;
 
-    // Holds components of calibration image currently being worked on
-    IplImage* m_redPart;
-    IplImage* m_greenPart;
-    IplImage* m_bluePart;
-
-    // Used as temporary storage when bitwise-and'ing channels together
-    IplImage* m_channelAnd;
-
-    // Used as temporary storage when bitwise-and'ing entire images together
-    IplImage* m_imageAnd;
+    struct quad_t* m_quad;
+    struct plist_t* m_plistRaw;
+    struct plist_t* m_plistProc;
 
     // Stores which colored images to include in calibration
     char m_enabledColors;

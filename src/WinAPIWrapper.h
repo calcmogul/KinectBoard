@@ -1,6 +1,7 @@
 //=============================================================================
 //File Name: WinAPIWrapper.h
-//Description: Provides wrapper for common WinAPI algorithms called in this program
+//Description: Provides wrapper for common WinAPI algorithms called in this
+//             program
 //Author: Tyler Veness
 //=============================================================================
 
@@ -17,12 +18,28 @@
 
 #include <windows.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* All INPUT structures are zeroed upon entry to each function.
  * The parameters passed to the function determine what the zeroed struct will then contain.
  */
 
-void moveMouse( INPUT& input , DWORD dx , DWORD dy , DWORD dwFlags = 0 ); // put extra flags here; MOUSEEVENTF_MOVE is added automatically
-void leftClick( INPUT& input ); // sends left click and release to event queue
-void rightClick( INPUT& input ); // sends right click and release to event queue
+void moveMouse( INPUT* input ,
+        DWORD dx ,
+        DWORD dy ,
+        DWORD dwFlags // put extra flags here; use either MOUSEEVENTF_MOVE or MOUSEEVENTF_ABSOLUTE
+        );
+
+// Sends left click and release to event queue
+void leftClick( INPUT* input );
+
+// Sends right click and release to event queue
+void rightClick( INPUT* input );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // WINAPI_WRAPPER_H
