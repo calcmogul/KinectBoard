@@ -67,14 +67,6 @@ Kinect::~Kinect() {
     DeleteObject( m_vidImage );
     DeleteObject( m_depthImage );
 
-    m_vidImageMutex.lock();
-    std::free( m_cvVidImage->imageData );
-    m_vidImageMutex.unlock();
-
-    m_depthImageMutex.lock();
-    std::free( m_cvDepthImage->imageData );
-    m_depthImageMutex.unlock();
-
     std::free( m_vidBuffer );
     std::free( m_depthBuffer );
 
