@@ -1,11 +1,11 @@
 //=============================================================================
-//File Name: ProcColor.hpp
+//File Name: Processing.hpp
 //Description: Contains valid colors for Kinect image processing
 //Author: Tyler Veness
 //=============================================================================
 
-#ifndef PROC_COLOR_HPP
-#define PROC_COLOR_HPP
+#ifndef PROCESSING_HPP
+#define PROCESSING_HPP
 
 class Processing {
 public:
@@ -17,4 +17,4 @@ public:
     };
 };
 
-#endif // PROC_COLOR_HPP
+#endif // PROCESSING_HPP

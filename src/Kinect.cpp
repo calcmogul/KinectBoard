@@ -7,13 +7,10 @@
 
 #include <cstring>
 #include <cstdlib>
-#include "Kinect.hpp"
 #include "CKinect/parse.h"
+#include "Kinect.hpp"
+#include "WinAPIWrapper.h"
 #include <SFML/Graphics/Image.hpp>
-
-#include <iostream> // TODO Remove me
-
-#include <opencv2/core/core_c.h>
 
 Kinect::Kinect() :
         m_vidImage( NULL ) ,
@@ -48,6 +45,8 @@ Kinect::Kinect() :
         m_calibImages.push_back( new IplImage );
         m_calibImages.at( m_calibImages.size() - 1 ) = NULL;
     }
+
+    m_input = { 0 };
 }
 
 Kinect::~Kinect() {
@@ -251,6 +250,10 @@ void Kinect::lookForCursors() {
        the boundary defined by m_quad, and scale them to the size
        of the computer's main screen. */
     findScreenLocation( m_plistRaw , &m_plistProc , m_quad , GetSystemMetrics( SM_CXSCREEN ) , GetSystemMetrics( SM_CYSCREEN ) );
+
+    if ( m_plistProc != NULL ) {
+        moveMouse( &m_input , m_plistProc->data.x , m_plistProc->data.y , MOUSEEVENTF_ABSOLUTE );
+    }
 }
 
 void Kinect::enableColor( ProcColor color ) {

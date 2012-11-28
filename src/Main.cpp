@@ -10,7 +10,7 @@
 
 #include "TestScreen.hpp"
 
-#define _WIN32_WINNT 0x0601
+#define _WIN32_WINNT 0x0501
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
@@ -21,7 +21,6 @@ enum {
     IDC_STREAM_TOGGLE_BUTTON = 102
 };
 
-#include "WinAPIWrapper.h"
 #include "Kinect.hpp"
 
 // global because the drawing is set up to be continuous in CALLBACK OnEvent
@@ -64,7 +63,6 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     RegisterClassEx(&WindowClass);
 
     MSG Message;
-    INPUT input = { 0 };
 
     /* ===== Make a new window that isn't fullscreen ===== */
     RECT winSize = { 0 , 0 , static_cast<int>(ImageVars::width) , static_cast<int>(ImageVars::height) }; // set the size, but not the position
@@ -159,13 +157,6 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
         //projectorKinect.combineCalibImages();
         projectorKinect.displayVideo( mainWindow , 0 , 0 );
         projectorKinect.displayDepth( depthWindow , 0 , 0 );
-
-        // TODO get images from Kinect, process them, and move mouse and press mouse buttons
-
-        //moveMouse( input , -5 , 0 ); // move mouse cursor 5 pixels left
-        //moveMouse( input , 5 , 0 ); // move mouse cursor 5 pixels right
-
-        //leftClick( input ); // left click for testing
 
         Sleep( 50 );
     }

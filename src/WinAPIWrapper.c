@@ -8,7 +8,7 @@
 #include "WinAPIWrapper.h"
 
 void moveMouse( INPUT* input , DWORD dx , DWORD dy , DWORD dwFlags ) {
-	ZeroMemory( &input , sizeof(INPUT) );
+	ZeroMemory( input , sizeof(INPUT) );
 	input->type = INPUT_MOUSE;
 	if ( dx != 0 ) {
 		input->mi.dx = dx;

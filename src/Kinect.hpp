@@ -13,22 +13,19 @@
 #ifndef KINECT_HPP
 #define KINECT_HPP
 
+#undef _WIN32_WINNT
+#define _WIN32_WINNT 0x0501
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+
 #include "CKinect/kinect.h"
 #include "ImageVars.hpp"
-#include "ProcColor.hpp"
+#include "Processing.hpp"
 #include <vector>
 #include <string>
 #include <opencv2/core/types_c.h>
 
 #include <SFML/System/Mutex.hpp>
-
-#ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x0601
-#endif
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-
-typedef struct _IplImage IplImage;
 
 class Kinect : public Processing {
 public:
@@ -73,6 +70,9 @@ public:
      */
     void calibrate();
 
+    /* Find points within screen boundary that could be mouse cursors and sets
+     * system mouse to match its location
+     */
     void lookForCursors();
 
     // Adds color to calibration steps
@@ -115,12 +115,15 @@ private:
     // Calibration image storage (IplImage* is whole image)
     std::vector<IplImage*> m_calibImages;
 
+    // Stores which colored images to include in calibration
+    char m_enabledColors;
+
     struct quad_t* m_quad;
     struct plist_t* m_plistRaw;
     struct plist_t* m_plistProc;
 
-    // Stores which colored images to include in calibration
-    char m_enabledColors;
+    // Used for moving mouse cursor and clicking mouse buttons
+    INPUT m_input;
 
     // Displays the given image in the given window at the given coordinates
     void display( HWND window , int x , int y , HBITMAP image , sf::Mutex& displayMutex );
