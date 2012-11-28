@@ -1,6 +1,6 @@
 /* Functions for idenfiying the screen and pointer in
    images captured by the Micrsoft Kinect. */
-
+  
 #include <opencv2/imgproc/imgproc_c.h>
 #include <opencv2/highgui/highgui_c.h>
 #include <stdio.h>
@@ -17,24 +17,83 @@ plist_free(struct plist_t *plist_in)
     struct plist_t *plist_next;
 
     for(plist = plist_in; plist != NULL; plist = plist_next){
-        plist_next = plist->next;
-        free(plist);
+    	plist_next = plist->next;
+    	free(plist);
     }
 
     return;
 }
 
-/* The internal sorting function used by qsort(3) as used by sortquad() */
+/* Determines the quadrant point is in, if the origin is in the center
+   of the quadrilateral specified by quad. This is used by the sortquad
+   function. */
+int quad_getquad(struct quad_t *quad, CvPoint point){
+    int mpx, mpy;
+    int px, py;
+
+    /* get the point in the middle of the quadrilateral by
+       averaging it's four points */
+    mpx = quad->point[0].x;
+    mpx += quad->point[1].x;
+    mpx += quad->point[2].x;
+    mpx += quad->point[3].x;
+
+    mpy = quad->point[0].y;
+    mpy += quad->point[1].y;
+    mpy += quad->point[2].y;
+    mpy += quad->point[3].y;
+
+    mpx /= 4;
+    mpy /= 4;
+
+    /* locate the quadrant point is in */
+    px = point.x;
+    py = point.y;
+
+    /* transform the point */
+    px -= mpx;
+    py -= mpy;
+
+    /* this assumes px != 0 && py != 0 */
+
+    /* first quadrant */
+    if(px < 0 && py < 0){
+    	return 0;
+    }
+
+    /* second quadrant */
+    if(px < 0 && py > 0){
+    	return 1;
+    }
+
+    /* third quadrant */
+    if(px > 0 && py > 0){
+    	return 2;
+    }
+
+    /* fourth quadrant */
+    if(px > 0 && py < 0){
+    	return 3;
+    }
+    
+    return 0;
+}
+
+/* The internal sorting function used by qsort(3) as used by
+   sortquad() */
 int
 quad_sortfunc(const void *arg0, const void *arg1)
 {
+    double tmp;
+
     const struct quadsort_t *quad0 = arg0;
     const struct quadsort_t *quad1 = arg1;
 
-    return quad1->angle - quad0->angle;
+    return quad0->quadrant - quad1->quadrant;
 }
 
-/* Re-orders the points in a quadrilateral in a counter-clockwise manner. */
+/* Re-orders the points in a quadrilateral in a counter-clockwise
+   manner. */
 void
 sortquad(struct quad_t *quad_in)
 {
@@ -43,8 +102,9 @@ sortquad(struct quad_t *quad_in)
 
     /* create the array of structs to be sorted */
     for(i = 0; i < 4; i++){
-        sortlist[i].point = quad_in->point[i];
-        sortlist[i].angle = atan(sortlist[i].point.y/sortlist[i].point.x);
+    	sortlist[i].point = quad_in->point[i];
+    	sortlist[i].quadrant = quad_getquad(quad_in,
+    		quad_in->point[i]);
     }
 
     /* sort the list */
@@ -52,11 +112,58 @@ sortquad(struct quad_t *quad_in)
 
     /* rearrange the input array */
     for(i = 0; i < 4; i++){
-        quad_in->point[i] = sortlist[i].point;
+    	quad_in->point[i] = sortlist[i].point;
     }
 
     return;
 }
+
+#if 0
+/* The internal sorting function used by qsort(3) as used by
+   sortquad() */
+int
+quad_sortfunc(const void *arg0, const void *arg1)
+{
+    double tmp;
+
+    const struct quadsort_t *quad0 = arg0;
+    const struct quadsort_t *quad1 = arg1;
+
+    tmp = quad1->angle - quad0->angle;
+    if(tmp < 0) return -1;
+    if(tmp > 0) return 1;
+    if(tmp == 0) return 0;
+
+    return 0;
+}
+
+/* Re-orders the points in a quadrilateral in a counter-clockwise
+   manner. */
+void
+sortquad(struct quad_t *quad_in)
+{
+    int i;
+    struct quadsort_t sortlist[4];
+
+    /* create the array of structs to be sorted */
+    for(i = 0; i < 4; i++){
+    	sortlist[i].point = quad_in->point[i];
+    	sortlist[i].angle = atan(
+    		(double)sortlist[i].point.y/
+    		(double)sortlist[i].point.x);
+    }
+
+    /* sort the list */
+    qsort(sortlist, 4, sizeof(struct quadsort_t), quad_sortfunc);
+
+    /* rearrange the input array */
+    for(i = 0; i < 4; i++){
+    	quad_in->point[i] = sortlist[i].point;
+    }
+
+    return;
+}
+#endif
 
 #if 0
 struct plistsort_t {
@@ -83,25 +190,26 @@ plistsort(struct plist_t *plist_in)
     /* find out how big the list is */
     listlength = 0;
     for(plist = plist_in; plist != NULL; plist = plist->next){
-        listlength++;
+    	listlength++;
     }
 
-    /* fill an array with information about this list for the sorting
-       function to use */
+    /* Fill an array with information about this list for the
+       sorting function to use */
     sortlist = malloc(sizeof(struct plistsort_t)*i);
 
     for(plist = plist_in; plist != NULL; plist = plist->next){
-        sortlist[i].plist = plist;
-        sortlist[i].angle = atan(plist->data.y/plist->data.x);
+    	sortlist[i].plist = plist;
+    	sortlist[i].angle = atan(plist->data.y/plist->data.x);
     }
 
-    /* do the sorting */
-    qsort(sortlist, listlength, sizeof(struct plistsort_t), plist_sortfunc);
+    /* Engage! */
+    qsort(sortlist, listlength, sizeof(struct plistsort_t),
+    	plist_sortfunc);
 
     /* rearrange the linked list to the sorted order.
        the -1 causes every element to be touched except the last. */
     for(i = 0; i < listlength-1; i++){
-        sortlist[i].plist->next = sortlist[i+1].plist->next;
+    	sortlist[i].plist->next = sortlist[i+1].plist->next;
     }
     /* set the last element to NULL */
     sortlist[i].plist->next = NULL;
@@ -110,11 +218,11 @@ plistsort(struct plist_t *plist_in)
 
     return sortlist[i].plist;
 }
-#endif
+#endif 
 
-/* Filters an image for a channel, and fills a pointer to an image with the
-   monochrome result. channel tells which channel to filter. Valid values
-   are:
+/* Filters an image for a channel, and fills a pointer to an image
+   with the monochrome result. channel tells which channel to filter.
+   Valid values are:
    FLT_RED
    FLT_GREEN
    FLT_BLUE
@@ -144,14 +252,17 @@ imageFilter(IplImage *image, IplImage **product, int channel)
 
     /* threshold */
     cvThreshold(green, green, 150, 255,
-        (channel == FLT_GREEN) ? CV_THRESH_BINARY:CV_THRESH_BINARY_INV);
+    	(channel == FLT_GREEN) ? CV_THRESH_BINARY:
+    	CV_THRESH_BINARY_INV);
     cvThreshold(red, red, 50, 255,
-        (channel == FLT_RED) ? CV_THRESH_BINARY:CV_THRESH_BINARY_INV);
+    	(channel == FLT_RED) ? CV_THRESH_BINARY:
+    	CV_THRESH_BINARY_INV);
     cvThreshold(blue, blue, 50, 255,
-        (channel == FLT_BLUE) ? CV_THRESH_BINARY:CV_THRESH_BINARY_INV);
+    	(channel == FLT_BLUE) ? CV_THRESH_BINARY:
+    	CV_THRESH_BINARY_INV);
 
-    /* and the three together to yeild a binary image containing only
-       the specified colour. tmp1 is the result.  */
+    /* The three together to yeild a binary image containing only
+       the specified colour. tmp0 is the result.  */
     cvAnd(red, green, tmp0, NULL);
     cvAnd(tmp0, blue, tmp1, NULL);
 
@@ -168,9 +279,10 @@ imageFilter(IplImage *image, IplImage **product, int channel)
     return 0;
 }
 
-/* Takes calibration images of red, green, and blue boxes, and finds
-   a quadrilateral that represents the screen. Remember to
-   free(*quadout) when you're done with it. */
+/* Takes calibration images of red, green, and blue boxes, and
+   finds a quadrilateral that represents the screen. If any of
+   the calibration image arguments are NULL, they will be ignored.
+   Remember to free(*quadout) when you're done with it. */
 int
 findScreenBox(
     IplImage *redimage,
@@ -201,55 +313,62 @@ findScreenBox(
     size.height = redimage->height;
 
     tmp0 = cvCreateImage(size, 8, 1);
-    tmp1 = cvCreateImage(size, 8, 1);
+    /* tmp1 = cvCreateImage(size, 8, 1); */
 
     /* filter the images */
-    imageFilter(redimage, &redfilter, FLT_RED);
-    imageFilter(greenimage, &greenfilter, FLT_GREEN);
-    imageFilter(blueimage, &bluefilter, FLT_BLUE);
+    if(redimage != NULL)
+    	imageFilter(redimage, &redfilter, FLT_RED);
+    if(redimage != NULL)
+    	imageFilter(greenimage, &greenfilter, FLT_GREEN);
+    if(redimage != NULL)
+    	imageFilter(blueimage, &bluefilter, FLT_BLUE);
 
     /* and the three images together */
-    cvAnd(redfilter, greenfilter, tmp0, NULL);
-    cvAnd(tmp0, bluefilter, tmp1, NULL);
+    memset(tmp0->imageData, 0xff, size.width*size.height);
+    if(redimage != NULL);
+    	cvAnd(tmp0, redfilter, tmp0, NULL);
+    if(greenimage != NULL);
+    	cvAnd(tmp0, greenfilter, tmp0, NULL);
+    if(blueimage != NULL);
+    	cvAnd(tmp0, bluefilter, tmp0, NULL);
 
-    /* only the calibration quadrilateral should be in tmp1, now
+    /* only the calibration quadrilateral should be in tmp0, now
        we need to find it's points */
 
-    /* find the contour
-       note that we should check for the presence of other contours that
-       may be the test pattern */
+    /* Find the contour.
+       Note that we should check for the presence of other contours
+       that may be the test pattern. */
     storage = cvCreateMemStorage(0);
-    scanner = cvStartFindContours(tmp1, storage, sizeof(CvContour),
-        CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE, cvPoint(0, 0));
+    scanner = cvStartFindContours(tmp0, storage, sizeof(CvContour),
+    	CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE, cvPoint(0, 0));
     ctr = cvFindNextContour(scanner);
 
     /* ctr had better not be NULL here */
     if(ctr == NULL) {
-        /* clean up from finding our contours */
-        cvEndFindContours(&scanner);
-        cvClearMemStorage(storage);
-        cvReleaseMemStorage(&storage);
+    	/* clean up from finding our contours */
+    	cvEndFindContours(&scanner);
+    	cvClearMemStorage(storage);
+    	cvReleaseMemStorage(&storage);
 
-        /* free the temporary images */
-        cvReleaseImage(&redfilter);
-        cvReleaseImage(&greenfilter);
-        cvReleaseImage(&bluefilter);
+    	/* free the temporary images */
+    	cvReleaseImage(&redfilter);
+    	cvReleaseImage(&greenfilter);
+    	cvReleaseImage(&bluefilter);
 
-        cvReleaseImage(&tmp0);
-        cvReleaseImage(&tmp1);
+    	cvReleaseImage(&tmp0);
 
-        return 1;
+    	return 1;
     }
 
     /* approximate the polygon, and find the points */
     rect = cvBoundingRect(ctr, 0);
     ctr = cvApproxPoly(ctr, sizeof(CvContour), storage,
-        CV_POLY_APPROX_DP, 10, 0);
+    	CV_POLY_APPROX_DP, 10, 0);
 
     /* extract the points */
     quad = malloc(sizeof(struct quad_t));
     for(i = 0; i < 4; i++){
-        quad->point[i] = *CV_GET_SEQ_ELEM(CvPoint, ctr, i);
+    	quad->point[i] = *CV_GET_SEQ_ELEM(CvPoint, ctr, i);
     }
 
     /* clean up from finding our contours */
@@ -263,7 +382,6 @@ findScreenBox(
     cvReleaseImage(&bluefilter);
 
     cvReleaseImage(&tmp0);
-    cvReleaseImage(&tmp1);
 
     /* send off the output */
     *quadout = quad;
@@ -275,8 +393,8 @@ findScreenBox(
    struct plist_t *plist = NULL;
    struct plist_t *plist_start = NULL;
    for(...){
-    plist = plist_mke(point, plist);
-    if(plist_start == NULL) plist_start = plist;
+       plist = plist_mke(point, plist); 
+       if(plist_start == NULL) plist_start = plist;
    }
    plist_start is the start of the linked list */
 struct plist_t *
@@ -287,7 +405,7 @@ plist_mke(CvPoint data, struct plist_t *plist_in)
     plist = malloc(sizeof(struct plist_t));
     plist->next = NULL;
     if(plist_in != NULL)
-        plist_in->next = plist;
+    	plist_in->next = plist;
     plist->data = data;
 
     return plist;
@@ -357,13 +475,16 @@ quadCheckPoint(CvPoint point, struct quad_t *quad)
     if(point.y < interpolateY(quad->point[0], quad->point[3], point.x)) return 1;
 
     /* should be left of segment BC */
-    if(point.x > interpolateX(quad->point[2], quad->point[3], point.y)) return 1;
+    if(point.x > interpolateX(quad->point[2], quad->point[3],
+    	point.y)) return 1;
 
     /* should be above segment CD */
-    if(point.y > interpolateY(quad->point[1], quad->point[2], point.x)) return 1;
+    if(point.y > interpolateY(quad->point[1], quad->point[2],
+    	point.x)) return 1;
 
-    /* should be right of AD */
-    if(point.x < interpolateX(quad->point[0], quad->point[1], point.y)) return 1;
+    /* should be right of AD */ 
+    if(point.x < interpolateX(quad->point[0], quad->point[1],
+    	point.y)) return 1;
 
     return 0;
 }
@@ -375,7 +496,7 @@ quadCheckPoint(CvPoint point, struct quad_t *quad)
 
 /* Oh my...
    * test that points are inside quad
-   * locate point in reference to (0, 0) being the top left corner
+   * locate point in reference to (0, 0) being the top left corner 
      of the quadrilateral
    * scale it to the size of the screen */
 int
@@ -403,47 +524,61 @@ findScreenLocation(
     struct plist_t *plistmk_start = NULL;
     CvPoint point;
 
-    /* Sort the calibration quadrilateral's points counter-clockwize */
+    /* Sort the calibration quadrilateral's points
+       counter-clockwize */
     sortquad(quad);
 
     for(plist = plist_in; plist != NULL; plist = plist->next){
-        /* is the point within the quadrilateral? */
-        if(quadCheckPoint(plist->data, quad)){
-            /* it's outside the quadrilateral */
-            continue;
-        }
+    	/* is the point within the quadrilateral? */
+    	if(quadCheckPoint(plist->data, quad)){
+    		/* it's outside the quadrilateral */
+    		continue;
+    	}
 
-        /* plist->data is the point inside quadrilateral which
-           we need to transform into the screen */
-        x = plist->data.x;
-        y = plist->data.y;
+    	/* plist->data is the point inside quadrilateral which
+    	   we need to transform into the screen */
+    	x = plist->data.x;
+    	y = plist->data.y;
 
-        /* find the distance from the origin to the corresponding points
-           on the side of the quadrilateral */
-        xoffset = interpolateX(quad->point[0], quad->point[1], y);
-        yoffset = interpolateY(quad->point[0], quad->point[3], x);
+    	/* find the distance from the origin to the
+    	   corresponding points on the side of the
+    	   quadrilateral */
+    	xoffset = interpolateX(quad->point[0],
+    		quad->point[1], y);
+    	yoffset = interpolateY(quad->point[0],
+    		quad->point[3], x);
 
-        /* apply the offsets (distance to side of quadrilateral)
-           to the point */
-        x -= xoffset;
-        y -= yoffset;
+    	/* apply the offsets (distance to side of quadrilateral)
+    	   to the point */
+    	x -= xoffset;
+    	y -= yoffset;
 
-        /* calculate width and height of quadrilateral */
-        x_farside = interpolateX(quad->point[2], quad->point[3], y);
-        y_farside = interpolateY(quad->point[1], quad->point[2], x);
+    	/* calculate width and height of quadrilateral */
+    	x_farside = interpolateX(quad->point[2],
+    		quad->point[3], y);
+    	y_farside = interpolateY(quad->point[1],
+    		quad->point[2], x);
 
-        x_length = x_farside-xoffset;
-        y_length = y_farside-yoffset;
+    	/*
+    	x_length = x_farside-xoffset;
+    	y_length = y_farside-yoffset;
+    	*/
 
-        /* proportion the screen dimensions to the quadrilateral
-           dimensions */
-        /* (x):(quad width) == (x):(screen width) */
-        scrx = (x*screenwidth)/x_length;
-        scry = (y*screenheight)/y_length;
-        point.x = scrx;
-        point.y = scry;
-        plistmk = plist_mke(point, plistmk);
-        if(plistmk_start == NULL) plistmk_start = plistmk;
+    	/* ...using the distance formula */
+    	y_length = hypot(quad->point[1].y - quad->point[0].y,
+    		quad->point[1].x - quad->point[0].x);
+    	x_length = hypot(quad->point[1].y - quad->point[2].y,
+    		quad->point[1].x - quad->point[2].x);
+
+    	/* proportion the screen dimensions to the quadrilateral
+    	   dimensions */
+    	/* (x):(quad width) == (x):(screen width) */
+    	scrx = (x*screenwidth)/x_length;
+    	scry = (y*screenheight)/y_length;
+    	point.x = scrx;
+    	point.y = scry;
+    	plistmk = plist_mke(point, plistmk);
+    	if(plistmk_start == NULL) plistmk_start = plistmk;
     }
 
     /* y = mx+b */
@@ -459,7 +594,10 @@ findScreenLocation(
    the same as used by imageFilter() .
    Remember to plist_free(*plist_out) when you're done with it. */
 int
-findImageLocation(IplImage *image, struct plist_t **plist_out, int channel)
+findImageLocation(
+    IplImage *image,
+    struct plist_t **plist_out,
+    int channel)
 {
     CvPoint point;
     CvMemStorage *storage;
@@ -476,25 +614,26 @@ findImageLocation(IplImage *image, struct plist_t **plist_out, int channel)
     /* We now have an image with only the channel we want */
     storage = cvCreateMemStorage(0);
     scanner = cvStartFindContours(tmp1, storage, sizeof(CvContour),
-        CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE, cvPoint(0, 0));
+    	CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE, cvPoint(0, 0));
 
     while((ctr = cvFindNextContour(scanner)) != NULL){
-        /* find the center of the bounding rectangle of the contour */
-        rect = cvBoundingRect(ctr, 0);
-        point.x = rect.x+(rect.width/2);
-        point.y = rect.y+(rect.height/2);
-        plist = plist_mke(point, plist);
+    	/* find the center of the bounding rectangle of the
+    	   contour */
+    	rect = cvBoundingRect(ctr, 0);
+    	if(rect.width > 4 && rect.height > 4){
+    		point.x = rect.x+(rect.width/2);
+    		point.y = rect.y+(rect.height/2);
+    		plist = plist_mke(point, plist);
+    	}
 
-        /* printf("(%d, %d)\n", rect.x+(rect.width/2), rect.y+(rect.height/2)); */
 
-        /* find the first point in the contour */
-        /*
-        point = *CV_GET_SEQ_ELEM(CvPoint, ctr, 0);
-        */
-        /* printf("location: (%d, %d)\n", point->x, point->y); */
+    	/* find the first point in the contour */
+    	/*
+    	point = *CV_GET_SEQ_ELEM(CvPoint, ctr, 0);
+    	*/
 
-        /* we should do this better */
-        if(plist_start == NULL) plist_start = plist;
+    	/* we should do this better */
+    	if(plist_start == NULL) plist_start = plist;
     }
 
     cvEndFindContours(&scanner);
@@ -523,7 +662,6 @@ RGBtoIplImage(uint8_t *rgbimage, int width, int height)
     return image;
 }
 
-#if 0
 /* Example usage */
 int
 main()
@@ -537,7 +675,11 @@ main()
     IplImage *b_image;
     IplImage *image;
 
-    /* load the calibration images, and an image which contains a pointer */
+    /* Load the calibration images, and an image which contains
+       a pointing instrument. Normally, RGBtoIplImage would be
+       used in place of cvLoadImage to translate images incoming
+       from the Kinect to the IplImage format used by later
+       calls. */
     r_image = cvLoadImage("r_image.png", CV_LOAD_IMAGE_COLOR);
     assert(r_image);
 
@@ -554,6 +696,9 @@ main()
        image which represents the screen */
     assert(!findScreenBox(r_image, g_image, b_image, &quad));
 
+    /* The calls to findImageLocation and findScreenLocation 
+       are to be called repeadedly with images from the Kinect */
+
     /* Create a list of points which represent potential locations
        of the pointer */
     assert(!findImageLocation(image, &plist_raw, FLT_GREEN));
@@ -561,7 +706,12 @@ main()
     /* Identinfy the points in plist_raw which are located inside
        the boundary defined by quad, and scale them to a 1366x768
        screen. */
-    assert(!findScreenLocation(plist_raw, &plist_proc, quad, 1366, 768));
+    assert(!findScreenLocation(plist_raw, &plist_proc,
+    	quad, 1366, 768));
+
+    /* plist_proc is now a list of potential cursor positions
+       relative to the size of the screen. in the best case
+       scenerio, it will contain only one point. */
 
     /* Free the quad we allocated, as well as the plists. */
     free(quad);
@@ -576,6 +726,5 @@ main()
 
     return 0;
 }
-#endif
 
 /* moveMouse(input, plist_proc->data.x, plist_proc->data.y, 0); */
