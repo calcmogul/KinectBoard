@@ -105,10 +105,12 @@ private:
     HBITMAP m_vidImage;
     HBITMAP m_depthImage;
 
+    char* m_vidBuffer;
+    char* m_depthBuffer;
+
     // OpenCV variables
     IplImage* m_cvVidImage;
     IplImage* m_cvDepthImage;
-    char* m_vidBuffer;
 
     // Calibration image storage (IplImage* is whole image)
     std::vector<IplImage*> m_calibImages;

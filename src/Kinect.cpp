@@ -36,7 +36,11 @@ Kinect::Kinect() :
     m_cvVidImage = cvCreateImage( m_imageSize , 8 , 4 );
     m_cvDepthImage = cvCreateImage( m_imageSize , 8 , 4 );
 
+    // 3 bytes per pixel
     m_vidBuffer = (char*)std::malloc( ImageVars::width * ImageVars::height * 3 );
+
+    // Each value in the depth image is 2 bytes long per pixel
+    m_depthBuffer = (char*)std::malloc( ImageVars::width * ImageVars::height * 2 );
 
     m_enabledColors = 0x00;
 
@@ -73,6 +77,7 @@ Kinect::~Kinect() {
     m_depthImageMutex.unlock();
 
     std::free( m_vidBuffer );
+    std::free( m_depthBuffer );
 
     cvReleaseImage( &m_cvVidImage );
     cvReleaseImage( &m_cvDepthImage );
@@ -239,7 +244,7 @@ void Kinect::lookForCursors() {
     /* Create a list of points which represent potential locations
        of the pointer */
     m_vidImageMutex.lock();
-    findImageLocation( m_cvVidImage , &m_plistRaw , FLT_GREEN );
+    findImageLocation( RGBtoIplImage( reinterpret_cast<unsigned char*>(m_vidBuffer) , ImageVars::width , ImageVars::height ) , &m_plistRaw , FLT_GREEN );
     m_vidImageMutex.unlock();
 
     /* Identify the points in m_plistRaw which are located inside
@@ -302,12 +307,12 @@ void Kinect::newDepthFrame( struct nstream_t* streamObject , void* classObject )
 
     kinectPtr->m_depthImageMutex.lock();
 
-    char* pxlBuf = kinectPtr->m_kinect->depth->buf;
+    std::strcpy( kinectPtr->m_kinect->depth->buf , kinectPtr->m_depthBuffer );
 
     double depth = 0.0;
     unsigned short depthVal = 0;
     for ( unsigned int index = 0 ; index < ImageVars::width * ImageVars::height ; index++ ) {
-        depthVal = (unsigned short) *((unsigned short*)(pxlBuf + 2 * index));
+        depthVal = (unsigned short) *((unsigned short*)(kinectPtr->m_depthBuffer + 2 * index));
 
         depth = Kinect::rawDepthToMeters( depthVal );
 
