@@ -367,9 +367,12 @@ findScreenBox(
     	cvReleaseMemStorage(&storage);
 
     	/* free the temporary images */
-    	cvReleaseImage(&redfilter);
-    	cvReleaseImage(&greenfilter);
-    	cvReleaseImage(&bluefilter);
+    	if(redimage != NULL)
+    	    cvReleaseImage(&redfilter);
+    	if(greenimage != NULL)
+    	    cvReleaseImage(&greenfilter);
+    	if(blueimage != NULL)
+    	    cvReleaseImage(&bluefilter);
 
     	cvReleaseImage(&tmp0);
 
@@ -388,9 +391,12 @@ findScreenBox(
         cvReleaseMemStorage(&storage);
 
         /* free the temporary images */
-        cvReleaseImage(&redfilter);
-        cvReleaseImage(&greenfilter);
-        cvReleaseImage(&bluefilter);
+        if(redimage != NULL)
+            cvReleaseImage(&redfilter);
+        if(greenimage != NULL)
+            cvReleaseImage(&greenfilter);
+        if(blueimage != NULL)
+            cvReleaseImage(&bluefilter);
 
         cvReleaseImage(&tmp0);
 
@@ -409,9 +415,12 @@ findScreenBox(
     cvReleaseMemStorage(&storage);
 
     /* free the temporary images */
-    cvReleaseImage(&redfilter);
-    cvReleaseImage(&greenfilter);
-    cvReleaseImage(&bluefilter);
+    if(redimage != NULL)
+        cvReleaseImage(&redfilter);
+    if(greenimage != NULL)
+        cvReleaseImage(&greenfilter);
+    if(blueimage != NULL)
+        cvReleaseImage(&bluefilter);
 
     cvReleaseImage(&tmp0);
 
@@ -699,12 +708,16 @@ RGBtoIplImage(uint8_t *rgbimage, int width, int height)
     CvSize size;
     IplImage *image;
 
+    /* We need data to create an IplImage */
     if(rgbimage == NULL)
         return NULL;
 
     size.width = width;
     size.height = height;
-    image = cvCreateImageHeader(size, 8, 3);
+    image = cvCreateImage( size , 8 , 3 );
+
+    /* Copy data to new IplImage */
+    memcpy( image->imageData , rgbimage , width * height * 3 );
 
     return image;
 }

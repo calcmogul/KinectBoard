@@ -135,6 +135,8 @@ private:
     // Displays the given image in the given window at the given coordinates
     void display( HWND window , int x , int y , HBITMAP image , sf::Mutex& displayMutex , HDC deviceContext );
 
+    static char* RGBtoBITMAPdata( const char* imageData , unsigned int width , unsigned int height );
+
     static double rawDepthToMeters( unsigned short depthValue );
 };
 

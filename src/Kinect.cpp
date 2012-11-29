@@ -12,6 +12,7 @@
 #include "WinAPIWrapper.h"
 #include <SFML/Graphics/Image.hpp>
 #include <iostream> // TODO Remove me
+#include <cstdio>
 
 Kinect::Kinect() :
         m_vidImage( NULL ) ,
@@ -32,8 +33,8 @@ Kinect::Kinect() :
 
     m_imageSize = { static_cast<int>(ImageVars::width) , static_cast<int>(ImageVars::height) };
 
-    m_cvVidImage = cvCreateImage( m_imageSize , 8 , 4 );
-    m_cvDepthImage = cvCreateImage( m_imageSize , 8 , 4 );
+    m_cvVidImage = cvCreateImage( m_imageSize , IPL_DEPTH_8U , 4 );
+    m_cvDepthImage = cvCreateImage( m_imageSize , IPL_DEPTH_8U , 4 );
 
     // 3 bytes per pixel
     m_vidBuffer = (char*)std::malloc( ImageVars::width * ImageVars::height * 3 );
@@ -165,14 +166,14 @@ void Kinect::displayDepth( HWND window , int x , int y , HDC deviceContext ) {
 }
 
 bool Kinect::saveVideo( const std::string& fileName ) const {
-    unsigned char* imageData = (unsigned char*)std::malloc( ImageVars::width * ImageVars::height * 4 );
+    unsigned char imageData[ImageVars::width * ImageVars::height * 4];
 
     // Copy OpenCV BGR image to RGB array
-    for ( unsigned int i = 0 ; i < ImageVars::width * ImageVars::height * 4 ; i += 4 ) {
-        imageData[i+0] = m_cvVidImage->imageData[i+2];
-        imageData[i+1] = m_cvVidImage->imageData[i+1];
-        imageData[i+2] = m_cvVidImage->imageData[i+0];
-        imageData[i+3] = 255;
+    for ( unsigned int startI = 0 , endI = 0 ; endI < ImageVars::width * ImageVars::height * 4 ; startI += 3 , endI += 4 ) {
+        imageData[endI+0] = m_vidBuffer[startI+0];
+        imageData[endI+1] = m_vidBuffer[startI+1];
+        imageData[endI+2] = m_vidBuffer[startI+2];
+        imageData[endI+3] = 255;
     }
 
     sf::Image imageBuffer;
@@ -182,7 +183,7 @@ bool Kinect::saveVideo( const std::string& fileName ) const {
 }
 
 bool Kinect::saveDepth( const std::string& fileName ) const {
-    unsigned char* imageData = (unsigned char*)std::malloc( ImageVars::width * ImageVars::height * 4 );
+    unsigned char imageData[ImageVars::width * ImageVars::height * 4];
 
     // Copy OpenCV BGR image to RGB array
     for ( unsigned int i = 0 ; i < ImageVars::width * ImageVars::height * 4 ; i += 4 ) {
@@ -199,10 +200,19 @@ bool Kinect::saveDepth( const std::string& fileName ) const {
 }
 
 void Kinect::setCalibImage( Processing::ProcColor colorWanted ) {
+    char *fname;
+
     if ( isVideoStreamRunning() ) {
+        fname = (char *)std::malloc(128);
+
         m_vidImageMutex.lock();
-        std::strcpy( m_calibImages[colorWanted]->imageData , m_vidBuffer );
+        std::memcpy( m_calibImages[colorWanted]->imageData , m_vidBuffer , ImageVars::width * ImageVars::height * 3 );
         m_vidImageMutex.unlock();
+
+        std::sprintf(fname, "calib-%d.png", colorWanted);
+        saveVideo(fname);
+        std::free(fname);
+
     }
 }
 
@@ -238,10 +248,14 @@ void Kinect::calibrate() {
 void Kinect::lookForCursors() {
     // We can't look for cursors if we never found a screen on which to look
     if ( m_foundScreen ) {
+        m_vidImageMutex.lock();
+
         /* Create a list of points which represent potential locations
            of the pointer */
-        m_vidImageMutex.lock();
-        findImageLocation( RGBtoIplImage( reinterpret_cast<unsigned char*>(m_vidBuffer) , ImageVars::width , ImageVars::height ) , &m_plistRaw , FLT_GREEN );
+        IplImage* tempImage = RGBtoIplImage( reinterpret_cast<unsigned char*>(m_vidBuffer) , ImageVars::width , ImageVars::height );
+        findImageLocation( tempImage , &m_plistRaw , FLT_GREEN );
+        cvReleaseImage( &tempImage );
+
         m_vidImageMutex.unlock();
 
         /* Identify the points in m_plistRaw which are located inside
@@ -260,7 +274,7 @@ void Kinect::lookForCursors() {
 void Kinect::enableColor( ProcColor color ) {
     if ( !isEnabled( color ) ) {
         m_enabledColors |= ( 1 << color );
-        m_calibImages[color] = cvCreateImage( m_imageSize , 8 , 3 );
+        m_calibImages[color] = cvCreateImage( m_imageSize , IPL_DEPTH_8U , 3 );
     }
 }
 
@@ -281,25 +295,32 @@ void Kinect::newVideoFrame( struct nstream_t* streamObject , void* classObject )
 
     kinectPtr->m_vidImageMutex.lock();
 
-    std::strcpy( kinectPtr->m_vidBuffer , kinectPtr->m_kinect->rgb->buf );
+    // Copy image to internal buffer (3 channels)
+    std::memcpy( kinectPtr->m_vidBuffer , kinectPtr->m_kinect->rgb->buf , ImageVars::width * ImageVars::height * 3 );
 
-    /* ===== Convert RGB to BGRA before displaying the image ===== */
-    /* Swap R and B because Win32 expects the color components in the
-     * opposite order they are currently in
-     */
-
-    for ( unsigned int startI = 0 , endI = 0 ; endI < ImageVars::width * ImageVars::height * 4 ; startI += 3 , endI += 4 ) {
-        kinectPtr->m_cvVidImage->imageData[endI] = kinectPtr->m_vidBuffer[startI+2];
-        kinectPtr->m_cvVidImage->imageData[endI+1] = kinectPtr->m_vidBuffer[startI+1];
-        kinectPtr->m_cvVidImage->imageData[endI+2] = kinectPtr->m_vidBuffer[startI];
-    }
-    /* =========================================================== */
-
-    // Make HBITMAP from pixel array
     kinectPtr->m_vidDisplayMutex.lock();
 
     DeleteObject( kinectPtr->m_vidImage ); // free previous image if there is one
-    kinectPtr->m_vidImage = CreateBitmap( ImageVars::width , ImageVars::height , 1 , 32 , kinectPtr->m_cvVidImage->imageData );
+
+    // Draw lines to show user where the screen is
+    CvScalar lineColor = CV_RGB( 0x00 , 0xFF , 0x00 );
+
+    kinectPtr->m_cvVidImage = RGBtoIplImage( reinterpret_cast<unsigned char*>( kinectPtr->m_vidBuffer ) , ImageVars::width , ImageVars::height );
+
+    if ( kinectPtr->m_foundScreen ) {
+        cvLine( kinectPtr->m_cvVidImage , kinectPtr->m_quad->point[0] , kinectPtr->m_quad->point[1] , lineColor , 3 , 8 , 0 );
+        cvLine( kinectPtr->m_cvVidImage , kinectPtr->m_quad->point[1] , kinectPtr->m_quad->point[2] , lineColor , 3 , 8 , 0 );
+        cvLine( kinectPtr->m_cvVidImage , kinectPtr->m_quad->point[2] , kinectPtr->m_quad->point[3] , lineColor , 3 , 8 , 0 );
+        cvLine( kinectPtr->m_cvVidImage , kinectPtr->m_quad->point[3] , kinectPtr->m_quad->point[0] , lineColor , 3 , 8 , 0 );
+    }
+
+    char* displayData = RGBtoBITMAPdata( kinectPtr->m_cvVidImage->imageData , ImageVars::width , ImageVars::height );
+
+    kinectPtr->m_vidImage = CreateBitmap( ImageVars::width , ImageVars::height , 1 , 32 , displayData );
+
+    std::free( displayData );
+
+    cvReleaseImage( &kinectPtr->m_cvVidImage );
 
     kinectPtr->m_vidDisplayMutex.unlock();
 
@@ -311,7 +332,8 @@ void Kinect::newDepthFrame( struct nstream_t* streamObject , void* classObject )
 
     kinectPtr->m_depthImageMutex.lock();
 
-    std::strcpy( kinectPtr->m_depthBuffer , kinectPtr->m_kinect->depth->buf );
+    // Copy image to internal buffer (2 bytes per pixel)
+    std::memcpy( kinectPtr->m_depthBuffer , kinectPtr->m_kinect->depth->buf , ImageVars::width * ImageVars::height * 2 );
 
     double depth = 0.0;
     unsigned short depthVal = 0;
@@ -378,6 +400,24 @@ void Kinect::display( HWND window , int x , int y , HBITMAP image , sf::Mutex& d
     }
 
     displayMutex.unlock();
+}
+
+char* Kinect::RGBtoBITMAPdata( const char* imageData , unsigned int width , unsigned int height ) {
+    char* bitmapData = (char*)std::malloc( width * height * 4 );
+
+    /* ===== Convert RGB to BGRA before displaying the image ===== */
+    /* Swap R and B because Win32 expects the color components in the
+     * opposite order they are currently in
+     */
+
+    for ( unsigned int startI = 0 , endI = 0 ; endI < width * height * 4 ; startI += 3 , endI += 4 ) {
+        bitmapData[endI+0] = imageData[startI+2];
+        bitmapData[endI+1] = imageData[startI+1];
+        bitmapData[endI+2] = imageData[startI+0];
+    }
+    /* =========================================================== */
+
+    return bitmapData;
 }
 
 double Kinect::rawDepthToMeters( unsigned short depthValue ) {
