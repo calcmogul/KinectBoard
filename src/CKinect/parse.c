@@ -334,9 +334,9 @@ findScreenBox(
     /* filter the images */
     if(redimage != NULL)
     	imageFilter(redimage, &redfilter, FLT_RED);
-    if(redimage != NULL)
+    if(greenimage != NULL)
     	imageFilter(greenimage, &greenfilter, FLT_GREEN);
-    if(redimage != NULL)
+    if(blueimage != NULL)
     	imageFilter(blueimage, &bluefilter, FLT_BLUE);
 
     /* and the three images together */
@@ -526,7 +526,7 @@ quadCheckPoint(CvPoint point, struct quad_t *quad)
 }
 
 /* Takes a list of points from findImageLocation, scales them from
-   the quadrilateral quad (reperesenting the screen), to the screen
+   the quadrilateral quad (representing the screen), to the screen
    resolution specified by screenwidth and screenheight.
    Remember to plist_free(*plist_out) when you're done with it. */
 
