@@ -48,6 +48,7 @@ struct quadsort_t {
 };
 
 void plist_free(struct plist_t *plist_in);
+int quad_getquad(struct quad_t *quad, CvPoint point);
 int quad_sortfunc(const void *arg0, const void *arg1);
 void sortquad(struct quad_t *quad_in);
 int imageFilter(IplImage *image, IplImage **product, int channel);
