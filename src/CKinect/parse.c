@@ -306,8 +306,22 @@ findScreenBox(
 
     /* we should probably check that all three images coming in
        are the same size */
-    size.width = redimage->width;
-    size.height = redimage->height;
+    if ( redimage != NULL ) {
+        size.width = redimage->width;
+        size.height = redimage->height;
+    }
+    else if ( greenimage != NULL ) {
+        size.width = greenimage->width;
+        size.height = greenimage->height;
+    }
+    else if ( blueimage != NULL ) {
+        size.width = blueimage->width;
+        size.height = blueimage->height;
+    }
+    else {
+        size.width = 0;
+        size.height = 0;
+    }
 
     tmp0 = cvCreateImage(size, 8, 1);
     /* tmp1 = cvCreateImage(size, 8, 1); */
@@ -315,9 +329,9 @@ findScreenBox(
     /* filter the images */
     if(redimage != NULL)
         imageFilter(redimage, &redfilter, FLT_RED);
-    if(redimage != NULL)
+    if(greenimage != NULL)
         imageFilter(greenimage, &greenfilter, FLT_GREEN);
-    if(redimage != NULL)
+    if(blueimage != NULL)
         imageFilter(blueimage, &bluefilter, FLT_BLUE);
 
     /* and the three images together */
@@ -348,9 +362,15 @@ findScreenBox(
         cvReleaseMemStorage(&storage);
 
         /* free the temporary images */
-        cvReleaseImage(&redfilter);
-        cvReleaseImage(&greenfilter);
-        cvReleaseImage(&bluefilter);
+        if ( redimage != NULL ) {
+            cvReleaseImage(&redfilter);
+        }
+        if ( greenimage != NULL ) {
+            cvReleaseImage(&greenfilter);
+        }
+        if ( blueimage != NULL ) {
+            cvReleaseImage(&bluefilter);
+        }
 
         cvReleaseImage(&tmp0);
 
@@ -361,10 +381,16 @@ findScreenBox(
     ctr = cvApproxPoly(ctr, sizeof(CvContour), storage,
         CV_POLY_APPROX_DP, 10, 0);
 
+    /* used to provide room for NULL checking */
+    CvPoint* tempPoint;
+
     /* extract the points */
     quad = malloc(sizeof(struct quad_t));
     for(i = 0; i < 4; i++){
-        quad->point[i] = *CV_GET_SEQ_ELEM(CvPoint, ctr, i);
+        tempPoint = CV_GET_SEQ_ELEM(CvPoint, ctr, i);
+        if ( tempPoint != NULL ) {
+            quad->point[i] = *tempPoint;
+        }
     }
 
     /* clean up from finding our contours */
@@ -373,9 +399,15 @@ findScreenBox(
     cvReleaseMemStorage(&storage);
 
     /* free the temporary images */
-    cvReleaseImage(&redfilter);
-    cvReleaseImage(&greenfilter);
-    cvReleaseImage(&bluefilter);
+    if ( redimage != NULL ) {
+        cvReleaseImage(&redfilter);
+    }
+    if ( greenimage != NULL ) {
+        cvReleaseImage(&greenfilter);
+    }
+    if ( blueimage != NULL ) {
+        cvReleaseImage(&bluefilter);
+    }
 
     cvReleaseImage(&tmp0);
 

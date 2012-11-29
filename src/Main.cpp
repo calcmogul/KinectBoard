@@ -21,6 +21,8 @@ enum {
     IDC_STREAM_TOGGLE_BUTTON = 102
 };
 
+#define WM_
+
 #include "Kinect.hpp"
 
 // global because the drawing is set up to be continuous in CALLBACK OnEvent
@@ -74,7 +76,7 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     // Create a new window to be used for the lifetime of the application
     mainWindow = CreateWindowEx( 0 ,
             mainClassName ,
-            "KinectBoard" ,
+            "KinectBoard - Video" ,
             WS_SYSMENU | WS_CAPTION | WS_VISIBLE | WS_MINIMIZEBOX | WS_CLIPCHILDREN ,
             ( GetSystemMetrics(SM_CXSCREEN) - ( winSize.right - winSize.left ) ) / 2 ,
             ( GetSystemMetrics(SM_CYSCREEN) - ( winSize.bottom - winSize.top ) ) / 2 ,
@@ -150,6 +152,9 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
             depthWasRunning = false;
         }
 
+        // Redraws stream
+        //UpdateWindow( mainWindow );
+        //UpdateWindow( depthWindow );
 
         //projectorKinect.processCalibImages( Kinect::Red );
         //projectorKinect.processCalibImages( Kinect::Green );
@@ -268,6 +273,20 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
 
         break;
     }
+
+    /*case WM_PAINT: {
+        PAINTSTRUCT ps;
+        HDC hdc;
+
+        hdc = BeginPaint( Handle , &ps );
+
+        projectorKinectPtr->displayVideo( mainWindow , 0 , 0 , hdc );
+        projectorKinectPtr->displayDepth( depthWindow , 0 , 0 , hdc );
+
+        EndPaint( Handle , &ps );
+
+        break;
+    }*/
 
     case WM_CLOSE: {
         isOpen = false;

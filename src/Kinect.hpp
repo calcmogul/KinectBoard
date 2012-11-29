@@ -50,11 +50,17 @@ public:
     // Returns true if the depth image stream is running
     bool isDepthStreamRunning();
 
-    // Displays most recently received RGB image
-    void displayVideo( HWND window , int x , int y );
+    /* Displays most recently received RGB image
+     * If it's called in reponse to the WM_PAINT message, pass in the window's
+     * device context received from BeginPaint()
+     */
+    void displayVideo( HWND window , int x , int y , HDC deviceContext = NULL );
 
-    // Displays most recently processed depth image
-    void displayDepth( HWND window , int x , int y );
+    /* Displays most recently processed depth image
+    * If it's called in reponse to the WM_PAINT message, pass in the window's
+    * device context received from BeginPaint()
+    */
+    void displayDepth( HWND window , int x , int y , HDC deviceContext = NULL );
 
     // Saves most recently received RGB image to file
     bool saveVideo( const std::string& fileName ) const;
@@ -118,6 +124,7 @@ private:
     // Stores which colored images to include in calibration
     char m_enabledColors;
 
+    bool m_foundScreen;
     struct quad_t* m_quad;
     struct plist_t* m_plistRaw;
     struct plist_t* m_plistProc;
@@ -126,7 +133,7 @@ private:
     INPUT m_input;
 
     // Displays the given image in the given window at the given coordinates
-    void display( HWND window , int x , int y , HBITMAP image , sf::Mutex& displayMutex );
+    void display( HWND window , int x , int y , HBITMAP image , sf::Mutex& displayMutex , HDC deviceContext );
 
     static double rawDepthToMeters( unsigned short depthValue );
 };

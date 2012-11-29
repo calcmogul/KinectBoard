@@ -11,10 +11,12 @@
 #include "Kinect.hpp"
 #include "WinAPIWrapper.h"
 #include <SFML/Graphics/Image.hpp>
+#include <iostream> // TODO Remove me
 
 Kinect::Kinect() :
         m_vidImage( NULL ) ,
         m_depthImage( NULL ) ,
+        m_foundScreen( false ) ,
         m_quad( NULL ) ,
         m_plistRaw( NULL ) ,
         m_plistProc( NULL ) {
@@ -75,7 +77,9 @@ Kinect::~Kinect() {
 
     for ( unsigned int index = m_calibImages.size() ; index > 0 ; index-- ) {
         cvReleaseImage( &m_calibImages.at( index - 1 ) );
+        delete m_calibImages.at( index - 1 );
     }
+    m_calibImages.clear();
 
     std::free( m_quad );
     plist_free( m_plistRaw );
@@ -152,12 +156,12 @@ bool Kinect::isDepthStreamRunning() {
     return false;
 }
 
-void Kinect::displayVideo( HWND window , int x , int y ) {
-    display( window , x , y , m_vidImage , m_vidDisplayMutex );
+void Kinect::displayVideo( HWND window , int x , int y , HDC deviceContext ) {
+    display( window , x , y , m_vidImage , m_vidDisplayMutex , deviceContext );
 }
 
-void Kinect::displayDepth( HWND window , int x , int y ) {
-    display( window , x , y , m_depthImage , m_depthDisplayMutex );
+void Kinect::displayDepth( HWND window , int x , int y , HDC deviceContext ) {
+    display( window , x , y , m_depthImage , m_depthDisplayMutex , deviceContext );
 }
 
 bool Kinect::saveVideo( const std::string& fileName ) const {
@@ -197,7 +201,7 @@ bool Kinect::saveDepth( const std::string& fileName ) const {
 void Kinect::setCalibImage( Processing::ProcColor colorWanted ) {
     if ( isVideoStreamRunning() ) {
         m_vidImageMutex.lock();
-        std::strcpy( m_vidBuffer , m_calibImages[colorWanted]->imageData );
+        std::strcpy( m_calibImages[colorWanted]->imageData , m_vidBuffer );
         m_vidImageMutex.unlock();
     }
 }
@@ -226,25 +230,30 @@ void Kinect::calibrate() {
     // If image was disabled, NULL is passed instead, so it's ignored
 
     /* Use the calibration images to locate a quadrilateral in the
-     * image which represents the screen
+     * image which represents the screen (returns 1 on failure)
      */
-    findScreenBox( redCalib , greenCalib , blueCalib , &m_quad );
+    m_foundScreen = !findScreenBox( redCalib , greenCalib , blueCalib , &m_quad );
 }
 
 void Kinect::lookForCursors() {
-    /* Create a list of points which represent potential locations
-       of the pointer */
-    m_vidImageMutex.lock();
-    findImageLocation( RGBtoIplImage( reinterpret_cast<unsigned char*>(m_vidBuffer) , ImageVars::width , ImageVars::height ) , &m_plistRaw , FLT_GREEN );
-    m_vidImageMutex.unlock();
+    // We can't look for cursors if we never found a screen on which to look
+    if ( m_foundScreen ) {
+        /* Create a list of points which represent potential locations
+           of the pointer */
+        m_vidImageMutex.lock();
+        findImageLocation( RGBtoIplImage( reinterpret_cast<unsigned char*>(m_vidBuffer) , ImageVars::width , ImageVars::height ) , &m_plistRaw , FLT_GREEN );
+        m_vidImageMutex.unlock();
 
-    /* Identify the points in m_plistRaw which are located inside
-       the boundary defined by m_quad, and scale them to the size
-       of the computer's main screen. */
-    findScreenLocation( m_plistRaw , &m_plistProc , m_quad , GetSystemMetrics( SM_CXSCREEN ) , GetSystemMetrics( SM_CYSCREEN ) );
+        /* Identify the points in m_plistRaw which are located inside
+           the boundary defined by m_quad, and scale them to the size
+           of the computer's main screen. */
+        if ( m_plistRaw != NULL ) {
+            findScreenLocation( m_plistRaw , &m_plistProc , m_quad , GetSystemMetrics( SM_CXSCREEN ) , GetSystemMetrics( SM_CYSCREEN ) );
 
-    if ( m_plistProc != NULL ) {
-        moveMouse( &m_input , m_plistProc->data.x , m_plistProc->data.y , MOUSEEVENTF_ABSOLUTE );
+            if ( m_plistProc != NULL ) {
+                moveMouse( &m_input , m_plistProc->data.x , m_plistProc->data.y , MOUSEEVENTF_ABSOLUTE );
+            }
+        }
     }
 }
 
@@ -272,7 +281,7 @@ void Kinect::newVideoFrame( struct nstream_t* streamObject , void* classObject )
 
     kinectPtr->m_vidImageMutex.lock();
 
-    std::strcpy( kinectPtr->m_kinect->rgb->buf , kinectPtr->m_vidBuffer );
+    std::strcpy( kinectPtr->m_vidBuffer , kinectPtr->m_kinect->rgb->buf );
 
     /* ===== Convert RGB to BGRA before displaying the image ===== */
     /* Swap R and B because Win32 expects the color components in the
@@ -302,7 +311,7 @@ void Kinect::newDepthFrame( struct nstream_t* streamObject , void* classObject )
 
     kinectPtr->m_depthImageMutex.lock();
 
-    std::strcpy( kinectPtr->m_kinect->depth->buf , kinectPtr->m_depthBuffer );
+    std::strcpy( kinectPtr->m_depthBuffer , kinectPtr->m_kinect->depth->buf );
 
     double depth = 0.0;
     unsigned short depthVal = 0;
@@ -328,7 +337,7 @@ void Kinect::newDepthFrame( struct nstream_t* streamObject , void* classObject )
     kinectPtr->m_depthImageMutex.unlock();
 }
 
-void Kinect::display( HWND window , int x , int y , HBITMAP image , sf::Mutex& displayMutex ) {
+void Kinect::display( HWND window , int x , int y , HBITMAP image , sf::Mutex& displayMutex , HDC deviceContext ) {
     displayMutex.lock();
 
     if ( image != NULL ) {
@@ -338,8 +347,16 @@ void Kinect::display( HWND window , int x , int y , HBITMAP image , sf::Mutex& d
         // Put the image into the offscreen DC and save the old one
         HBITMAP imageBackup = static_cast<HBITMAP>( SelectObject( imageHdc , image ) );
 
-        // Get DC of window to which to draw
-        HDC windowHdc = GetDC( window );
+        // Stores DC of window to which to draw
+        HDC windowHdc = deviceContext;
+
+        // Stores whether or not the window's HDC was provided for us
+        bool neededHdc = ( deviceContext == NULL );
+
+        // If we don't have the window's device context yet
+        if ( neededHdc ) {
+            windowHdc = GetDC( window );
+        }
 
         // Load image to real BITMAP just to retrieve its dimensions
         BITMAP tempBMP;
@@ -348,8 +365,10 @@ void Kinect::display( HWND window , int x , int y , HBITMAP image , sf::Mutex& d
         // Copy image from offscreen DC to window's DC
         BitBlt( windowHdc , x , y , tempBMP.bmWidth , tempBMP.bmHeight , imageHdc , 0 , 0 , SRCCOPY );
 
-        // Release window's HDC
-        ReleaseDC( window , windowHdc );
+        if ( neededHdc ) {
+            // Release window's HDC if we needed to get one earlier
+            ReleaseDC( window , windowHdc );
+        }
 
         // Restore old image
         SelectObject( imageHdc , imageBackup );
