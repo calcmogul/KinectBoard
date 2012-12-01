@@ -21,15 +21,14 @@ enum {
     IDC_STREAM_TOGGLE_BUTTON = 102
 };
 
-#define WM_
-
 #include "Kinect.hpp"
 
 // global because the drawing is set up to be continuous in CALLBACK OnEvent
 HWND mainWindow = NULL;
 HWND depthWindow = NULL;
+HICON kinectON = NULL;
+HICON kinectOFF = NULL;
 Kinect* projectorKinectPtr = NULL;
-volatile bool isOpen = true;
 
 LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LParam );
 
@@ -43,8 +42,8 @@ BOOL CALLBACK MonitorEnumProc(
 INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     const char* mainClassName = "KinectBoard";
 
-    HICON kinectON = LoadIcon( Instance , "kinect1-ON" );
-    HICON kinectOFF = LoadIcon( Instance , "kinect2-OFF" );
+    kinectON = LoadIcon( Instance , "kinect1-ON" );
+    kinectOFF = LoadIcon( Instance , "kinect2-OFF" );
 
     HBRUSH mainBrush = CreateSolidBrush( RGB( 0 , 0 , 0 ) );
 
@@ -57,7 +56,7 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     WindowClass.cbClsExtra    = 0;
     WindowClass.cbWndExtra    = 0;
     WindowClass.hInstance     = Instance;
-    WindowClass.hIcon         = kinectON;
+    WindowClass.hIcon         = kinectOFF;
     WindowClass.hCursor       = NULL;
     WindowClass.hbrBackground = mainBrush;
     WindowClass.lpszMenuName  = NULL;
@@ -103,6 +102,11 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
 
     Kinect projectorKinect;
     projectorKinectPtr = &projectorKinect;
+
+    // Make windows receive stream events from Kinect instance
+    projectorKinect.registerVideoWindow( mainWindow );
+    projectorKinect.registerDepthWindow( depthWindow );
+
     projectorKinect.startVideoStream();
     //projectorKinect.startDepthStream();
     projectorKinect.enableColor( Processing::Red );
@@ -111,66 +115,15 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     // Calibrate Kinect
     SendMessage( mainWindow , WM_COMMAND , IDC_RECALIBRATE_BUTTON , 0 );
 
-    // These prevent window icons from being set every loop
-    bool videoWasRunning = true;
-    bool depthWasRunning = true;
-
-    while ( isOpen ) {
+    while ( GetMessage( &Message , NULL , 0 , 0 ) > 0 ) {
         // If a message was waiting in the message queue, process it
-        if ( PeekMessage( &Message , NULL , 0 , 0 , PM_REMOVE ) > 0 ) {
-            TranslateMessage( &Message );
-            DispatchMessage( &Message );
-        }
-
-
-        // Change RGB window icon to red or green depending upon stream status
-        if ( projectorKinect.isVideoStreamRunning() && videoWasRunning == false ) {
-            SendMessage( mainWindow , WM_SETICON , ICON_SMALL , (LPARAM)kinectON );
-            SendMessage( mainWindow , WM_SETICON , ICON_BIG , (LPARAM)kinectON );
-
-            videoWasRunning = true;
-        }
-        else if ( !projectorKinect.isVideoStreamRunning() && videoWasRunning == true ) {
-            SendMessage( mainWindow , WM_SETICON , ICON_SMALL , (LPARAM)kinectOFF );
-            SendMessage( mainWindow , WM_SETICON , ICON_BIG , (LPARAM)kinectOFF );
-
-            videoWasRunning = false;
-        }
-
-
-        // Change depth window icon to red or green depending upon stream status
-        if ( projectorKinect.isDepthStreamRunning() && depthWasRunning == false ) {
-            SendMessage( depthWindow , WM_SETICON , ICON_SMALL , (LPARAM)kinectON );
-            SendMessage( depthWindow , WM_SETICON , ICON_BIG , (LPARAM)kinectON );
-
-            depthWasRunning = true;
-        }
-        else if ( !projectorKinect.isDepthStreamRunning() && depthWasRunning == true ) {
-            SendMessage( depthWindow , WM_SETICON , ICON_SMALL , (LPARAM)kinectOFF );
-            SendMessage( depthWindow , WM_SETICON , ICON_BIG , (LPARAM)kinectOFF );
-
-            depthWasRunning = false;
-        }
-
-        // Redraws stream
-        //UpdateWindow( mainWindow );
-        //UpdateWindow( depthWindow );
-
-        //projectorKinect.processCalibImages( Kinect::Red );
-        //projectorKinect.processCalibImages( Kinect::Green );
-        //projectorKinect.processCalibImages( Kinect::Blue );
-        //projectorKinect.combineCalibImages();
-        projectorKinect.displayVideo( mainWindow , 0 , 0 );
-        projectorKinect.displayDepth( depthWindow , 0 , 0 );
-
-        Sleep( 50 );
+        TranslateMessage( &Message );
+        DispatchMessage( &Message );
     }
 
-    // Clean up windows
-    //DestroyWindow( mainWindow );
     UnregisterClass( mainClassName , Instance );
 
-    return EXIT_SUCCESS;
+    return Message.wParam;
 }
 
 LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LParam ) {
@@ -245,7 +198,7 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
 
             case IDC_STREAM_TOGGLE_BUTTON: {
                 if ( projectorKinectPtr != NULL ) {
-                    // If button was pressed from RGB display window
+                    // If button was pressed from video display window
                     if ( Handle == mainWindow ) {
                         if ( projectorKinectPtr->isVideoStreamRunning() ) {
                             projectorKinectPtr->stopVideoStream();
@@ -255,8 +208,8 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
                         }
                     }
 
-                    // If button was pressed from depth display window
-                    if ( Handle == depthWindow ) {
+                    // If button was pressed from depth image display window
+                    else if ( Handle == depthWindow ) {
                         if ( projectorKinectPtr->isDepthStreamRunning() ) {
                             projectorKinectPtr->stopDepthStream();
                         }
@@ -273,22 +226,64 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
         break;
     }
 
-    /*case WM_PAINT: {
+    case WM_PAINT: {
         PAINTSTRUCT ps;
         HDC hdc;
 
         hdc = BeginPaint( Handle , &ps );
 
-        projectorKinectPtr->displayVideo( mainWindow , 0 , 0 , hdc );
-        projectorKinectPtr->displayDepth( depthWindow , 0 , 0 , hdc );
+        // If we're painting the video display window
+        if ( Handle == mainWindow ) {
+            projectorKinectPtr->displayVideo( mainWindow , 0 , 0 , hdc );
+        }
+
+        // If we're painting the depth image display window
+        else if ( Handle == depthWindow ) {
+            projectorKinectPtr->displayDepth( depthWindow , 0 , 0 , hdc );
+        }
 
         EndPaint( Handle , &ps );
 
         break;
-    }*/
+    }
 
-    case WM_CLOSE: {
-        isOpen = false;
+    case WM_DESTROY: {
+        // If a display window is being closed, exit the application
+        if ( Handle == mainWindow || Handle == depthWindow ) {
+            PostQuitMessage( 0 );
+        }
+
+        break;
+    }
+
+    case WM_KINECT_VIDEOSTART: {
+        // Change video window icon to green because the stream started
+        PostMessage( Handle , WM_SETICON , ICON_SMALL , (LPARAM)kinectON );
+        PostMessage( Handle , WM_SETICON , ICON_BIG , (LPARAM)kinectON );
+
+        break;
+    }
+
+    case WM_KINECT_VIDEOSTOP: {
+        // Change video window icon to red because the stream stopped
+        PostMessage( Handle , WM_SETICON , ICON_SMALL , (LPARAM)kinectOFF );
+        PostMessage( Handle , WM_SETICON , ICON_BIG , (LPARAM)kinectOFF );
+
+        break;
+    }
+
+    case WM_KINECT_DEPTHSTART: {
+        // Change depth window icon to green because the stream started
+        PostMessage( Handle , WM_SETICON , ICON_SMALL , (LPARAM)kinectON );
+        PostMessage( Handle , WM_SETICON , ICON_BIG , (LPARAM)kinectON );
+
+        break;
+    }
+
+    case WM_KINECT_DEPTHSTOP: {
+        // Change depth window icon to red because the stream stopped
+        PostMessage( Handle , WM_SETICON , ICON_SMALL , (LPARAM)kinectOFF );
+        PostMessage( Handle , WM_SETICON , ICON_BIG , (LPARAM)kinectOFF );
 
         break;
     }

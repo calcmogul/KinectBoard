@@ -25,7 +25,13 @@
 #include <string>
 #include <opencv2/core/types_c.h>
 
+#include <SFML/System/Clock.hpp>
 #include <SFML/System/Mutex.hpp>
+
+#define WM_KINECT_VIDEOSTART (WM_APP + 0x0001)
+#define WM_KINECT_VIDEOSTOP (WM_APP + 0x0002)
+#define WM_KINECT_DEPTHSTART (WM_APP + 0x0003)
+#define WM_KINECT_DEPTHSTOP (WM_APP + 0x0004)
 
 class Kinect : public Processing {
 public:
@@ -49,6 +55,18 @@ public:
 
     // Returns true if the depth image stream is running
     bool isDepthStreamRunning();
+
+    // Set max frame rate of video stream
+    void setVideoStreamFPS( unsigned int fps );
+
+    // Set max frame rate of depth image stream
+    void setDepthStreamFPS( unsigned int fps );
+
+    // Set window to which to send Kinect video stream messages
+    void registerVideoWindow( HWND window );
+
+    // Set window to which to send Kinect depth stream messages
+    void registerDepthWindow( HWND window );
 
     /* Displays most recently received RGB image
      * If it's called in reponse to the WM_PAINT message, pass in the window's
@@ -97,6 +115,9 @@ protected:
     sf::Mutex m_depthImageMutex;
     sf::Mutex m_depthDisplayMutex;
 
+    sf::Mutex m_vidWindowMutex;
+    sf::Mutex m_depthWindowMutex;
+
     CvSize m_imageSize;
 
     // Called when a new video image is received (swaps the image buffer)
@@ -111,12 +132,16 @@ private:
     HBITMAP m_vidImage;
     HBITMAP m_depthImage;
 
+    HWND m_vidWindow;
+    HWND m_depthWindow;
+
     char* m_vidBuffer;
     char* m_depthBuffer;
 
     // OpenCV variables
     IplImage* m_cvVidImage;
     IplImage* m_cvDepthImage;
+    IplImage* m_cvBitmapDest;
 
     // Calibration image storage (IplImage* is whole image)
     std::vector<IplImage*> m_calibImages;
@@ -131,6 +156,12 @@ private:
 
     // Used for moving mouse cursor and clicking mouse buttons
     INPUT m_input;
+
+    // Used to control maximum frame rate of each image stream
+    sf::Clock m_vidFrameTime;
+    sf::Clock m_depthFrameTime;
+    unsigned int m_vidFrameRate;
+    unsigned int m_depthFrameRate;
 
     // Displays the given image in the given window at the given coordinates
     void display( HWND window , int x , int y , HBITMAP image , sf::Mutex& displayMutex , HDC deviceContext );

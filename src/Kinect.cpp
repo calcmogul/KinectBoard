@@ -7,16 +7,17 @@
 
 #include <cstring>
 #include <cstdlib>
+#include <cstdio>
 #include "CKinect/parse.h"
 #include "Kinect.hpp"
 #include "WinAPIWrapper.h"
 #include <SFML/Graphics/Image.hpp>
-#include <iostream> // TODO Remove me
-#include <cstdio>
 
 Kinect::Kinect() :
         m_vidImage( NULL ) ,
         m_depthImage( NULL ) ,
+        m_vidWindow( NULL ) ,
+        m_depthWindow( NULL ) ,
         m_foundScreen( false ) ,
         m_quad( NULL ) ,
         m_plistRaw( NULL ) ,
@@ -33,8 +34,9 @@ Kinect::Kinect() :
 
     m_imageSize = { static_cast<int>(ImageVars::width) , static_cast<int>(ImageVars::height) };
 
-    m_cvVidImage = cvCreateImage( m_imageSize , IPL_DEPTH_8U , 4 );
+    m_cvVidImage = cvCreateImage( m_imageSize , IPL_DEPTH_8U , 3 );
     m_cvDepthImage = cvCreateImage( m_imageSize , IPL_DEPTH_8U , 4 );
+    m_cvBitmapDest = cvCreateImage( m_imageSize , IPL_DEPTH_8U , 4 );
 
     // 3 bytes per pixel
     m_vidBuffer = (char*)std::malloc( ImageVars::width * ImageVars::height * 3 );
@@ -50,6 +52,10 @@ Kinect::Kinect() :
     }
 
     m_input = { 0 };
+
+    // Set frame rates to maximum the Kinect supports
+    m_vidFrameRate = 30;
+    m_depthFrameRate = 30;
 }
 
 Kinect::~Kinect() {
@@ -75,6 +81,7 @@ Kinect::~Kinect() {
 
     cvReleaseImage( &m_cvVidImage );
     cvReleaseImage( &m_cvDepthImage );
+    cvReleaseImage( &m_cvBitmapDest );
 
     for ( unsigned int index = m_calibImages.size() ; index > 0 ; index-- ) {
         cvReleaseImage( &m_calibImages.at( index - 1 ) );
@@ -102,7 +109,11 @@ void Kinect::startVideoStream() {
     if ( m_kinect != NULL ) {
         // If rgb image stream is down, start it
         if ( m_kinect->rgb->state == NSTREAM_DOWN ) {
-            knt_startstream( m_kinect->rgb );
+            if ( knt_startstream( m_kinect->rgb ) == 0 ) {
+                m_vidWindowMutex.lock();
+                PostMessage( m_vidWindow , WM_KINECT_VIDEOSTART , 0 , 0 );
+                m_vidWindowMutex.unlock();
+            }
         }
     }
 }
@@ -122,7 +133,11 @@ void Kinect::startDepthStream() {
     if ( m_kinect != NULL ) {
         // If depth image stream is down, start it
         if ( m_kinect->depth->state == NSTREAM_DOWN ) {
-            knt_startstream( m_kinect->depth );
+            if ( knt_startstream( m_kinect->depth ) == 0 ) {
+                m_depthWindowMutex.lock();
+                PostMessage( m_depthWindow , WM_KINECT_DEPTHSTART , 0 , 0 );
+                m_depthWindowMutex.unlock();
+            }
         }
     }
 }
@@ -131,6 +146,10 @@ void Kinect::stopVideoStream() {
     // If the Kinect instance is valid, stop the rgb image stream if it's running
     if ( m_kinect != NULL ) {
         knt_rgb_stopstream( m_kinect->rgb );
+
+        m_vidWindowMutex.lock();
+        PostMessage( m_vidWindow , WM_KINECT_VIDEOSTOP , 0 , 0 );
+        m_vidWindowMutex.unlock();
     }
 }
 
@@ -138,6 +157,10 @@ void Kinect::stopDepthStream() {
     // If the Kinect instance is valid, stop the depth image stream if it's running
     if ( m_kinect != NULL ) {
         knt_depth_stopstream( m_kinect->depth );
+
+        m_depthWindowMutex.lock();
+        PostMessage( m_depthWindow , WM_KINECT_DEPTHSTOP , 0 , 0 );
+        m_depthWindowMutex.unlock();
     }
 }
 
@@ -155,6 +178,26 @@ bool Kinect::isDepthStreamRunning() {
     }
 
     return false;
+}
+
+void Kinect::setVideoStreamFPS( unsigned int fps ) {
+    m_vidFrameRate = fps;
+}
+
+void Kinect::setDepthStreamFPS( unsigned int fps ) {
+    m_depthFrameRate = fps;
+}
+
+void Kinect::registerVideoWindow( HWND window ) {
+    m_vidWindowMutex.lock();
+    m_vidWindow = window;
+    m_vidWindowMutex.unlock();
+}
+
+void Kinect::registerDepthWindow( HWND window ) {
+    m_depthWindowMutex.lock();
+    m_depthWindow = window;
+    m_depthWindowMutex.unlock();
 }
 
 void Kinect::displayVideo( HWND window , int x , int y , HDC deviceContext ) {
@@ -200,19 +243,16 @@ bool Kinect::saveDepth( const std::string& fileName ) const {
 }
 
 void Kinect::setCalibImage( Processing::ProcColor colorWanted ) {
-    char *fname;
-
     if ( isVideoStreamRunning() ) {
-        fname = (char *)std::malloc(128);
+        //char* fileName = (char*)std::malloc(16);
 
         m_vidImageMutex.lock();
         std::memcpy( m_calibImages[colorWanted]->imageData , m_vidBuffer , ImageVars::width * ImageVars::height * 3 );
         m_vidImageMutex.unlock();
 
-        std::sprintf(fname, "calib-%d.png", colorWanted);
-        saveVideo(fname);
-        std::free(fname);
-
+        /*std::sprintf( fileName , "calib-%d.png" , colorWanted );
+        saveVideo( fileName );
+        std::free( fileName );*/
     }
 }
 
@@ -302,29 +342,38 @@ void Kinect::newVideoFrame( struct nstream_t* streamObject , void* classObject )
 
     DeleteObject( kinectPtr->m_vidImage ); // free previous image if there is one
 
-    // Draw lines to show user where the screen is
-    CvScalar lineColor = CV_RGB( 0x00 , 0xFF , 0x00 );
+    // B , G , R , A
+    CvScalar lineColor = cvScalar( 0x00 , 0xFF , 0x00 , 0xFF );
 
     kinectPtr->m_cvVidImage = RGBtoIplImage( reinterpret_cast<unsigned char*>( kinectPtr->m_vidBuffer ) , ImageVars::width , ImageVars::height );
 
     if ( kinectPtr->m_foundScreen ) {
+        // Draw lines to show user where the screen is
         cvLine( kinectPtr->m_cvVidImage , kinectPtr->m_quad->point[0] , kinectPtr->m_quad->point[1] , lineColor , 3 , 8 , 0 );
         cvLine( kinectPtr->m_cvVidImage , kinectPtr->m_quad->point[1] , kinectPtr->m_quad->point[2] , lineColor , 3 , 8 , 0 );
         cvLine( kinectPtr->m_cvVidImage , kinectPtr->m_quad->point[2] , kinectPtr->m_quad->point[3] , lineColor , 3 , 8 , 0 );
         cvLine( kinectPtr->m_cvVidImage , kinectPtr->m_quad->point[3] , kinectPtr->m_quad->point[0] , lineColor , 3 , 8 , 0 );
     }
 
-    char* displayData = RGBtoBITMAPdata( kinectPtr->m_cvVidImage->imageData , ImageVars::width , ImageVars::height );
+    // Perform conversion from RGBA to BGRA for use as image data in CreateBitmap
+    cvCvtColor( kinectPtr->m_cvVidImage , kinectPtr->m_cvBitmapDest , CV_RGB2BGRA );
 
-    kinectPtr->m_vidImage = CreateBitmap( ImageVars::width , ImageVars::height , 1 , 32 , displayData );
-
-    std::free( displayData );
+    kinectPtr->m_vidImage = CreateBitmap( ImageVars::width , ImageVars::height , 1 , 32 , kinectPtr->m_cvBitmapDest->imageData );
 
     cvReleaseImage( &kinectPtr->m_cvVidImage );
 
     kinectPtr->m_vidDisplayMutex.unlock();
 
     kinectPtr->m_vidImageMutex.unlock();
+
+    // Limit video frame rate
+    if ( 1.f / kinectPtr->m_vidFrameTime.getElapsedTime().asSeconds() < kinectPtr->m_vidFrameRate ) {
+        kinectPtr->m_vidWindowMutex.lock();
+        kinectPtr->displayVideo( kinectPtr->m_vidWindow , 0 , 0 );
+        kinectPtr->m_vidWindowMutex.unlock();
+
+        kinectPtr->m_vidFrameTime.restart();
+    }
 }
 
 void Kinect::newDepthFrame( struct nstream_t* streamObject , void* classObject ) {
@@ -357,6 +406,15 @@ void Kinect::newDepthFrame( struct nstream_t* streamObject , void* classObject )
     kinectPtr->m_depthDisplayMutex.unlock();
 
     kinectPtr->m_depthImageMutex.unlock();
+
+    // Limit depth image stream frame rate
+    if ( 1.f / kinectPtr->m_depthFrameTime.getElapsedTime().asSeconds() < kinectPtr->m_depthFrameRate ) {
+        kinectPtr->m_depthWindowMutex.lock();
+        kinectPtr->displayDepth( kinectPtr->m_depthWindow , 0 , 0 );
+        kinectPtr->m_depthWindowMutex.unlock();
+
+        kinectPtr->m_depthFrameTime.restart();
+    }
 }
 
 void Kinect::display( HWND window , int x , int y , HBITMAP image , sf::Mutex& displayMutex , HDC deviceContext ) {
