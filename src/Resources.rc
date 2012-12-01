@@ -1,5 +1,16 @@
+#include "ResourceID.h"
+
 kinect1-ON ICON "OpenKinectON.ico"
 kinect2-OFF ICON "OpenKinectOFF.ico"
+
+mainMenu MENU {
+    POPUP "&Preferences" {
+        MENUITEM "&Change Monitor", MENU_CHANGE_MONITOR
+    }
+    POPUP "&Help" {
+        MENUITEM "&About", MENU_ABOUT
+    }
+}
 
 1 VERSIONINFO
 FILEVERSION     1,0,0,0

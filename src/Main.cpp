@@ -13,10 +13,7 @@
 #include <windows.h>
 #include <cstring>
 
-enum {
-    IDC_RECALIBRATE_BUTTON = 101,
-    IDC_STREAM_TOGGLE_BUTTON = 102
-};
+#include "ResourceID.h"
 
 #include "TestScreen.hpp"
 #include "Kinect.hpp"
@@ -54,6 +51,7 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     kinectOFF = LoadIcon( Instance , "kinect2-OFF" );
 
     HBRUSH mainBrush = CreateSolidBrush( RGB( 0 , 0 , 0 ) );
+    HMENU mainMenu = LoadMenu( Instance , "mainMenu" );
 
     // Define a class for our main window
     WNDCLASSEX WindowClass;
@@ -67,19 +65,19 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     WindowClass.hIcon         = kinectOFF;
     WindowClass.hCursor       = NULL;
     WindowClass.hbrBackground = mainBrush;
-    WindowClass.lpszMenuName  = NULL;
+    WindowClass.lpszMenuName  = "mainMenu";
     WindowClass.lpszClassName = mainClassName;
     WindowClass.hIconSm       = kinectOFF;
     RegisterClassEx(&WindowClass);
 
     MSG Message;
 
-    /* ===== Make a new window that isn't fullscreen ===== */
+    /* ===== Make two windows to display ===== */
     RECT winSize = { 0 , 0 , static_cast<int>(ImageVars::width) , static_cast<int>(ImageVars::height) }; // set the size, but not the position
     AdjustWindowRect(
             &winSize ,
             WS_SYSMENU | WS_CAPTION | WS_VISIBLE | WS_MINIMIZEBOX | WS_CLIPCHILDREN ,
-            FALSE ); // adjust the size
+            TRUE ); // window has menu
 
     // Create a new window to be used for the lifetime of the application
     videoWindow = CreateWindowEx( 0 ,
@@ -91,7 +89,7 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
             winSize.right - winSize.left , // returns image width (resized as window)
             winSize.bottom - winSize.top , // returns image height (resized as window)
             NULL ,
-            NULL ,
+            mainMenu ,
             Instance ,
             NULL );
 
@@ -104,10 +102,10 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
             winSize.right - winSize.left , // returns image width (resized as window)
             winSize.bottom - winSize.top , // returns image height (resized as window)
             NULL ,
-            NULL ,
+            mainMenu ,
             Instance ,
             NULL );
-    /* =================================================== */
+    /* ======================================= */
 
     Kinect projectorKinect;
     projectorKinectPtr = &projectorKinect;
@@ -122,13 +120,16 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     projectorKinect.enableColor( Processing::Blue );
 
     // Calibrate Kinect
-    SendMessage( videoWindow , WM_COMMAND , IDC_RECALIBRATE_BUTTON , 0 );
+    //SendMessage( videoWindow , WM_COMMAND , IDC_RECALIBRATE_BUTTON , 0 );
 
     while ( GetMessage( &Message , NULL , 0 , 0 ) > 0 ) {
         // If a message was waiting in the message queue, process it
         TranslateMessage( &Message );
         DispatchMessage( &Message );
     }
+
+    DestroyIcon( kinectON );
+    DestroyIcon( kinectOFF );
 
     UnregisterClass( mainClassName , Instance );
 
@@ -230,6 +231,13 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
 
                 break;
             }
+
+            /*EnumDisplayMonitors(
+                    NULL, // List all monitors
+                    NULL, // Don't clip area
+                    MonitorEnumProc,
+                    NULL // user data
+            );*/
         }
 
         break;
@@ -270,6 +278,7 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
         PostMessage( Handle , WM_SETICON , ICON_SMALL , (LPARAM)kinectON );
         PostMessage( Handle , WM_SETICON , ICON_BIG , (LPARAM)kinectON );
 
+        // Change Start/Stop button text to "Stop"
         char* windowText = (char*)std::malloc( 16 );
         EnumChildWindows( Handle , StartStreamChildProc , (LPARAM)windowText );
         std::free( windowText );
@@ -282,6 +291,7 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
         PostMessage( Handle , WM_SETICON , ICON_SMALL , (LPARAM)kinectOFF );
         PostMessage( Handle , WM_SETICON , ICON_BIG , (LPARAM)kinectOFF );
 
+        // Change Start/Stop button text to "Start"
         char* windowText = (char*)std::malloc( 16 );
         EnumChildWindows( Handle , StopStreamChildProc , (LPARAM)windowText );
         std::free( windowText );
@@ -294,6 +304,7 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
         PostMessage( Handle , WM_SETICON , ICON_SMALL , (LPARAM)kinectON );
         PostMessage( Handle , WM_SETICON , ICON_BIG , (LPARAM)kinectON );
 
+        // Change Start/Stop button text to "Stop"
         char* windowText = (char*)std::malloc( 16 );
         EnumChildWindows( Handle , StartStreamChildProc , (LPARAM)windowText );
         std::free( windowText );
@@ -306,6 +317,7 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
         PostMessage( Handle , WM_SETICON , ICON_SMALL , (LPARAM)kinectOFF );
         PostMessage( Handle , WM_SETICON , ICON_BIG , (LPARAM)kinectOFF );
 
+        // Change Start/Stop button text to "Start"
         char* windowText = (char*)std::malloc( 16 );
         EnumChildWindows( Handle , StopStreamChildProc , (LPARAM)windowText );
         std::free( windowText );
@@ -327,6 +339,8 @@ BOOL CALLBACK MonitorEnumProc(
     LPRECT lprcMonitor,
     LPARAM dwData
 ) {
+
+
     return FALSE;
 }
 
