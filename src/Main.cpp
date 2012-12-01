@@ -14,8 +14,6 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-typedef struct tagINPUT INPUT, *PINPUT;
-
 enum {
     IDC_RECALIBRATE_BUTTON = 101,
     IDC_STREAM_TOGGLE_BUTTON = 102
@@ -24,7 +22,7 @@ enum {
 #include "Kinect.hpp"
 
 // global because the drawing is set up to be continuous in CALLBACK OnEvent
-HWND mainWindow = NULL;
+HWND videoWindow = NULL;
 HWND depthWindow = NULL;
 HICON kinectON = NULL;
 HICON kinectOFF = NULL;
@@ -61,6 +59,7 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     WindowClass.hbrBackground = mainBrush;
     WindowClass.lpszMenuName  = NULL;
     WindowClass.lpszClassName = mainClassName;
+    WindowClass.hIconSm       = kinectOFF;
     RegisterClassEx(&WindowClass);
 
     MSG Message;
@@ -73,7 +72,7 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
             FALSE ); // adjust the size
 
     // Create a new window to be used for the lifetime of the application
-    mainWindow = CreateWindowEx( 0 ,
+    videoWindow = CreateWindowEx( 0 ,
             mainClassName ,
             "KinectBoard - Video" ,
             WS_SYSMENU | WS_CAPTION | WS_VISIBLE | WS_MINIMIZEBOX | WS_CLIPCHILDREN ,
@@ -104,7 +103,7 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     projectorKinectPtr = &projectorKinect;
 
     // Make windows receive stream events from Kinect instance
-    projectorKinect.registerVideoWindow( mainWindow );
+    projectorKinect.registerVideoWindow( videoWindow );
     projectorKinect.registerDepthWindow( depthWindow );
 
     projectorKinect.startVideoStream();
@@ -113,7 +112,7 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     projectorKinect.enableColor( Processing::Blue );
 
     // Calibrate Kinect
-    SendMessage( mainWindow , WM_COMMAND , IDC_RECALIBRATE_BUTTON , 0 );
+    SendMessage( videoWindow , WM_COMMAND , IDC_RECALIBRATE_BUTTON , 0 );
 
     while ( GetMessage( &Message , NULL , 0 , 0 ) > 0 ) {
         // If a message was waiting in the message queue, process it
@@ -199,7 +198,7 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
             case IDC_STREAM_TOGGLE_BUTTON: {
                 if ( projectorKinectPtr != NULL ) {
                     // If button was pressed from video display window
-                    if ( Handle == mainWindow ) {
+                    if ( Handle == videoWindow ) {
                         if ( projectorKinectPtr->isVideoStreamRunning() ) {
                             projectorKinectPtr->stopVideoStream();
                         }
@@ -233,8 +232,8 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
         hdc = BeginPaint( Handle , &ps );
 
         // If we're painting the video display window
-        if ( Handle == mainWindow ) {
-            projectorKinectPtr->displayVideo( mainWindow , 0 , 0 , hdc );
+        if ( Handle == videoWindow ) {
+            projectorKinectPtr->displayVideo( videoWindow , 0 , 0 , hdc );
         }
 
         // If we're painting the depth image display window
@@ -249,7 +248,7 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
 
     case WM_DESTROY: {
         // If a display window is being closed, exit the application
-        if ( Handle == mainWindow || Handle == depthWindow ) {
+        if ( Handle == videoWindow || Handle == depthWindow ) {
             PostQuitMessage( 0 );
         }
 
