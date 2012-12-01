@@ -8,17 +8,17 @@
  * TODO Add support for multiple monitors
  */
 
-#include "TestScreen.hpp"
-
 #define _WIN32_WINNT 0x0501
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <cstring>
 
 enum {
     IDC_RECALIBRATE_BUTTON = 101,
     IDC_STREAM_TOGGLE_BUTTON = 102
 };
 
+#include "TestScreen.hpp"
 #include "Kinect.hpp"
 
 // global because the drawing is set up to be continuous in CALLBACK OnEvent
@@ -35,6 +35,16 @@ BOOL CALLBACK MonitorEnumProc(
     HDC hdcMonitor,
     LPRECT lprcMonitor,
     LPARAM dwData
+);
+
+BOOL CALLBACK StartStreamChildProc(
+    HWND hwndChild,
+    LPARAM lParam
+);
+
+BOOL CALLBACK StopStreamChildProc(
+    HWND hwndChild,
+    LPARAM lParam
 );
 
 INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
@@ -149,7 +159,7 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
 
         HWND toggleStreamButton = CreateWindowEx( 0,
                 "BUTTON",
-                "Start/Stop",
+                "Start",
                 WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
                 ImageVars::width - 9 - 100,
                 ImageVars::height - 9 - 24,
@@ -260,6 +270,10 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
         PostMessage( Handle , WM_SETICON , ICON_SMALL , (LPARAM)kinectON );
         PostMessage( Handle , WM_SETICON , ICON_BIG , (LPARAM)kinectON );
 
+        char* windowText = (char*)std::malloc( 16 );
+        EnumChildWindows( Handle , StartStreamChildProc , (LPARAM)windowText );
+        std::free( windowText );
+
         break;
     }
 
@@ -267,6 +281,10 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
         // Change video window icon to red because the stream stopped
         PostMessage( Handle , WM_SETICON , ICON_SMALL , (LPARAM)kinectOFF );
         PostMessage( Handle , WM_SETICON , ICON_BIG , (LPARAM)kinectOFF );
+
+        char* windowText = (char*)std::malloc( 16 );
+        EnumChildWindows( Handle , StopStreamChildProc , (LPARAM)windowText );
+        std::free( windowText );
 
         break;
     }
@@ -276,6 +294,10 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
         PostMessage( Handle , WM_SETICON , ICON_SMALL , (LPARAM)kinectON );
         PostMessage( Handle , WM_SETICON , ICON_BIG , (LPARAM)kinectON );
 
+        char* windowText = (char*)std::malloc( 16 );
+        EnumChildWindows( Handle , StartStreamChildProc , (LPARAM)windowText );
+        std::free( windowText );
+
         break;
     }
 
@@ -283,6 +305,10 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
         // Change depth window icon to red because the stream stopped
         PostMessage( Handle , WM_SETICON , ICON_SMALL , (LPARAM)kinectOFF );
         PostMessage( Handle , WM_SETICON , ICON_BIG , (LPARAM)kinectOFF );
+
+        char* windowText = (char*)std::malloc( 16 );
+        EnumChildWindows( Handle , StopStreamChildProc , (LPARAM)windowText );
+        std::free( windowText );
 
         break;
     }
@@ -302,4 +328,36 @@ BOOL CALLBACK MonitorEnumProc(
     LPARAM dwData
 ) {
     return FALSE;
+}
+
+BOOL CALLBACK StartStreamChildProc(
+    HWND hwndChild,
+    LPARAM lParam
+) {
+    char* windowText = (char*)lParam;
+
+    if ( GetWindowText( hwndChild , windowText , 16 ) ) {
+        if ( std::strcmp( windowText , "Start" ) == 0 ) {
+            SetWindowText( hwndChild , "Stop" );
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
+BOOL CALLBACK StopStreamChildProc(
+    HWND hwndChild,
+    LPARAM lParam
+) {
+    char* windowText = (char*)lParam;
+
+    if ( GetWindowText( hwndChild , windowText , 16 ) ) {
+        if ( std::strcmp( windowText , "Stop" ) == 0 ) {
+            SetWindowText( hwndChild , "Start" );
+            return FALSE;
+        }
+    }
+
+    return TRUE;
 }
