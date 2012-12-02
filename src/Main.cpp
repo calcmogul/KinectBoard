@@ -14,12 +14,13 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "ResourceID.h"
+#include "Resource.h"
 
 #include "TestScreen.hpp"
 #include "Kinect.hpp"
 
 // global because the drawing is set up to be continuous in CALLBACK OnEvent
+HINSTANCE hInst = NULL;
 HWND videoWindow = NULL;
 HWND depthWindow = NULL;
 HICON kinectON = NULL;
@@ -27,6 +28,8 @@ HICON kinectOFF = NULL;
 Kinect* projectorKinectPtr = NULL;
 
 LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LParam );
+
+INT_PTR CALLBACK About( HWND hDlg , UINT message , WPARAM wParam , LPARAM lParam );
 
 BOOL CALLBACK MonitorEnumProc(
     HMONITOR hMonitor,
@@ -46,6 +49,8 @@ BOOL CALLBACK StopStreamChildProc(
 );
 
 INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
+    hInst = Instance;
+
     const char* mainClassName = "KinectBoard";
 
     kinectON = LoadIcon( Instance , "kinect1-ON" );
@@ -148,12 +153,12 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
                 "Recalibrate",
                 WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
                 9,
-                ImageVars::height - 9 - 24,
+                ImageVars::height - 9 - 28,
                 100,
-                24,
+                28,
                 Handle,
                 reinterpret_cast<HMENU>( IDC_RECALIBRATE_BUTTON ),
-                GetModuleHandle( NULL ),
+                hInst,
                 NULL);
 
         SendMessage( recalibButton,
@@ -167,12 +172,12 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
                 "Start",
                 WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
                 ImageVars::width - 9 - 100,
-                ImageVars::height - 9 - 24,
+                ImageVars::height - 9 - 28,
                 100,
-                24,
+                28,
                 Handle,
                 reinterpret_cast<HMENU>( IDC_STREAM_TOGGLE_BUTTON ),
-                GetModuleHandle( NULL ),
+                hInst,
                 NULL);
 
         SendMessage( toggleStreamButton,
@@ -184,21 +189,26 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
     }
 
     case WM_COMMAND: {
-        switch( LOWORD(WParam) ) {
+        int wmId    = LOWORD( WParam );
+        int wmEvent = HIWORD( WParam );
+
+        switch( wmId ) {
             case IDC_RECALIBRATE_BUTTON: {
                 if ( projectorKinectPtr != NULL ) {
-                    // if there is no Kinect connected, don't bother trying to retrieve images
+                    // If there is no Kinect connected, don't bother trying to retrieve images
                     if ( projectorKinectPtr->isVideoStreamRunning() ) {
-                        TestScreen testWin( GetModuleHandle( NULL ) , true );
+                        TestScreen testWin( hInst , true );
 
                         testWin.setColor( Processing::Red );
                         testWin.display();
-                        Sleep( 600 ); // give Kinect time to get image w/ test pattern
+                        // Give Kinect time to get image w/ test pattern in it
+                        Sleep( 600 );
                         projectorKinectPtr->setCalibImage( Processing::Red );
 
                         testWin.setColor( Processing::Blue );
                         testWin.display();
-                        Sleep( 600 ); // give Kinect time to get image w/ test pattern
+                        // Give Kinect time to get image w/ test pattern in it
+                        Sleep( 600 );
                         projectorKinectPtr->setCalibImage( Processing::Blue );
 
                         projectorKinectPtr->calibrate();
@@ -234,12 +244,20 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
                 break;
             }
 
-            /*EnumDisplayMonitors(
-                    NULL, // List all monitors
-                    NULL, // Don't clip area
-                    MonitorEnumProc,
-                    NULL // user data
-            );*/
+            case IDM_CHANGE_MONITOR: {
+                /*EnumDisplayMonitors(
+                        NULL, // List all monitors
+                        NULL, // Don't clip area
+                        MonitorEnumProc,
+                        NULL // user data
+                );*/
+
+                break;
+            }
+
+            case IDM_ABOUT: {
+                DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), Handle, About);
+            }
         }
 
         break;
@@ -333,6 +351,26 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
     }
 
     return 0;
+}
+
+// Message handler for about box.
+INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    UNREFERENCED_PARAMETER(lParam);
+    switch (message)
+    {
+    case WM_INITDIALOG:
+        return (INT_PTR)TRUE;
+
+    case WM_COMMAND:
+        if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
+        {
+            EndDialog(hDlg, LOWORD(wParam));
+            return (INT_PTR)TRUE;
+        }
+        break;
+    }
+    return (INT_PTR)FALSE;
 }
 
 BOOL CALLBACK MonitorEnumProc(

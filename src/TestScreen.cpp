@@ -116,6 +116,8 @@ void TestScreen::setColor( ProcColor borderColor ) {
 
 void TestScreen::display() {
     if ( m_window != NULL ) {
+        InvalidateRect( m_window , NULL , TRUE );
+#if 0
         // Make window visible before drawing to it
         ShowWindow( m_window , SW_SHOWNORMAL );
         BringWindowToTop( m_window );
@@ -156,6 +158,7 @@ void TestScreen::display() {
         DeleteObject( rectRgn );
 
         ReleaseDC( m_window , windowHdc );
+#endif
     }
 }
 
@@ -181,5 +184,53 @@ bool TestScreen::unregisterClass() {
 }
 
 LRESULT CALLBACK TestScreen::OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LParam ) {
-    return DefWindowProc( Handle , Message , WParam , LParam );
+    switch ( Message ) {
+    case WM_PAINT: {
+        PAINTSTRUCT ps;
+        HDC windowHdc = BeginPaint( Handle , &ps );
+
+        RECT windowSize;
+        GetClientRect( Handle , &windowSize );
+
+        HBRUSH blackBrush = CreateSolidBrush( RGB( 0 , 0 , 0 ) );
+
+        POINT rectanglePts[4];
+        HRGN rectRgn;
+
+        /* ===== Draw Pattern ===== */
+        // Draw colored border
+        rectanglePts[0] = { 0 , 0 };
+        rectanglePts[1] = { windowSize.right , 0 };
+        rectanglePts[2] = { windowSize.right , windowSize.bottom };
+        rectanglePts[3] = { 0 , windowSize.bottom };
+
+        rectRgn = CreatePolygonRgn( rectanglePts , 4 , ALTERNATE );
+        FillRgn( windowHdc , rectRgn , m_colorBrush );
+        DeleteObject( rectRgn );
+
+        // Fill inside with black
+        rectanglePts[0] = { 20 , 20 };
+        rectanglePts[1] = { windowSize.right - 20 , 20 };
+        rectanglePts[2] = { windowSize.right - 20 , windowSize.bottom - 20 };
+        rectanglePts[3] = { 20 , windowSize.bottom - 20 };
+
+        rectRgn = CreatePolygonRgn( rectanglePts , 4 , ALTERNATE );
+        FillRgn( windowHdc , rectRgn , blackBrush );
+        DeleteObject( rectRgn );
+        /* ======================== */
+
+        DeleteObject( blackBrush );
+        DeleteObject( rectRgn );
+
+        EndPaint( Handle , &ps );
+
+        break;
+    }
+
+    default: {
+        return DefWindowProc( Handle , Message , WParam , LParam );
+    }
+    }
+
+    return 0;
 }

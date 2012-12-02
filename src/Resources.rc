@@ -1,17 +1,37 @@
-#include "ResourceID.h"
+#include "Resource.h"
+#include <windows.h>
 
 kinect1-ON ICON "OpenKinectON.ico"
 kinect2-OFF ICON "OpenKinectOFF.ico"
 
-mainMenu MENU {
-    POPUP "&Preferences" {
-        MENUITEM "&Change Monitor", MENU_CHANGE_MONITOR
-    }
-    POPUP "&Help" {
-        MENUITEM "&About", MENU_ABOUT
-    }
-}
+////////// Menu
+mainMenu MENU
+BEGIN
+    POPUP "&Preferences"
+    BEGIN
+        MENUITEM "&Change Monitor",  IDM_CHANGE_MONITOR
+        MENUITEM SEPARATOR
+    END
+    POPUP "&Help"
+    BEGIN
+        MENUITEM "&About...",        IDM_ABOUT
+    END
+END
 
+////////// Dialog
+IDD_ABOUTBOX DIALOGEX (320 - 85) / 2 - 18, (240 - 31) / 2 - 22, 170, 62
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "About KinectBoard"
+FONT 10, "MS Shell Dlg"
+BEGIN
+    ICON             kinect1-ON,                     IDC_STATIC, 30, 8,  32,  32
+    LTEXT            "KinectBoard, Version 1.0a",    IDC_STATIC, 55, 12, 114, 10, SS_NOPREFIX
+    LTEXT            "Copyright (c) 2012",           IDC_STATIC, 30, 30, 159, 10
+    LTEXT            "Alan Fisher and Tyler Veness", IDC_STATIC, 30, 39, 96,  10
+    LTEXT            "All Rights Reserved",          IDC_STATIC, 30, 48, 63,  10
+END
+
+////////// Properties
 1 VERSIONINFO
 FILEVERSION     1,0,0,0
 PRODUCTVERSION  1,0,0,0
@@ -23,7 +43,7 @@ BEGIN
       VALUE "CompanyName", "acf | tav"
       VALUE "FileVersion", "1,0,0,0"
       VALUE "InternalName", "KinectBoard"
-      VALUE "LegalCopyright", "None"
+      VALUE "LegalCopyright", "(c) 2012 Alan Fisher and Tyler Veness"
       VALUE "OriginalFilename", "KinectBoard.exe"
       VALUE "ProductName", "KinectBoard"
       VALUE "ProductVersion", "1.0a"
