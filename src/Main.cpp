@@ -11,6 +11,7 @@
 #define _WIN32_WINNT 0x0501
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <cstdlib>
 #include <cstring>
 
 #include "ResourceID.h"
@@ -105,6 +106,8 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
             mainMenu ,
             Instance ,
             NULL );
+
+    ShowWindow( depthWindow , SW_MINIMIZE );
     /* ======================================= */
 
     Kinect projectorKinect;
@@ -132,6 +135,7 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     DestroyIcon( kinectOFF );
 
     UnregisterClass( mainClassName , Instance );
+    TestScreen::unregisterClass();
 
     return Message.wParam;
 }
@@ -185,7 +189,7 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
                 if ( projectorKinectPtr != NULL ) {
                     // if there is no Kinect connected, don't bother trying to retrieve images
                     if ( projectorKinectPtr->isVideoStreamRunning() ) {
-                        sf::TestScreen testWin( "KinectBoard" , Handle , NULL );
+                        TestScreen testWin( GetModuleHandle( NULL ) , true );
 
                         testWin.setColor( Processing::Red );
                         testWin.display();
@@ -198,8 +202,6 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
                         projectorKinectPtr->setCalibImage( Processing::Blue );
 
                         projectorKinectPtr->calibrate();
-
-                        testWin.close();
                     }
                 }
 

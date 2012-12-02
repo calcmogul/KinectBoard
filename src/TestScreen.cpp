@@ -6,79 +6,180 @@
 
 #include "TestScreen.hpp"
 #include "ImageVars.hpp"
-#include <SFML/Graphics/RectangleShape.hpp>
-#include <SFML/Graphics/Sprite.hpp>
-#include <SFML/Graphics/Texture.hpp>
+#include <iostream> // TODO Remove me
 
-namespace sf {
+const char* TestScreen::m_windowClassName = "TestScreen";
 
-TestScreen::TestScreen() : RenderWindow() , m_window( NULL ) , m_cursor( NULL ) , m_borderColor( Red ) {
+WNDCLASSEX TestScreen::m_windowClass;
+HINSTANCE TestScreen::m_instance;
+HBRUSH TestScreen::m_mainBrush;
+HBRUSH TestScreen::m_colorBrush;
+bool TestScreen::m_classInitialized = false;
 
-}
+TestScreen::TestScreen( HINSTANCE instance , bool createNow ) :
+        m_window( NULL ) ,
+        m_prevCursor( NULL ) ,
+        m_outlineColor ( { 255 , 0 , 0 } ) ,
+        m_borderColor( Red )
+{
+    if ( !m_classInitialized ) {
+        if ( instance != NULL ) {
+            m_instance = instance;
+        }
+        else {
+            m_instance = GetModuleHandle( NULL );
+        }
 
-TestScreen::TestScreen( const char* className , HWND parentWin , HINSTANCE instance ) : RenderWindow() , m_cursor( NULL ) , m_borderColor( Red ) {
-    m_window = CreateWindowEx( 0 ,
-            className ,
-            "" ,
-            WS_POPUP | WS_VISIBLE ,
-            0 ,
-            0 ,
-            GetSystemMetrics(SM_CXSCREEN) ,
-            GetSystemMetrics(SM_CYSCREEN) ,
-            parentWin ,
-            NULL ,
-            instance ,
-            NULL );
+        m_mainBrush = CreateSolidBrush( RGB( 0 , 0 , 0 ) );
+        m_colorBrush = CreateSolidBrush( RGB( 255 , 0 , 0 ) );
 
-    create( m_window );
+        ZeroMemory( &m_windowClass , sizeof(WNDCLASSEX) );
+        m_windowClass.cbSize        = sizeof(WNDCLASSEX);
+        m_windowClass.style         = 0;
+        m_windowClass.lpfnWndProc   = &TestScreen::OnEvent;
+        m_windowClass.cbClsExtra    = 0;
+        m_windowClass.cbWndExtra    = 0;
+        m_windowClass.hInstance     = m_instance;
+        m_windowClass.hIcon         = NULL;
+        m_windowClass.hCursor       = NULL;
+        m_windowClass.hbrBackground = m_mainBrush;
+        m_windowClass.lpszMenuName  = NULL;
+        m_windowClass.lpszClassName = m_windowClassName;
+        m_windowClass.hIconSm       = NULL;
+        RegisterClassEx( &m_windowClass );
 
-    // Prevent mouse cursor covering up pattern by making it invisible
-    SetCursor( NULL );
+        m_classInitialized = true;
+    }
+
+    // If caller intended to create the window upon construction
+    if ( createNow ) {
+        create();
+    }
 }
 
 TestScreen::~TestScreen() {
     TestScreen::close();
 }
 
+void TestScreen::create() {
+    // If window is closed
+    if ( m_window == NULL ) {
+        m_window = CreateWindowEx( 0 ,
+                m_windowClassName ,
+                "" ,
+                WS_POPUP | WS_VISIBLE ,
+                0 ,
+                0 ,
+                GetSystemMetrics(SM_CXSCREEN) ,
+                GetSystemMetrics(SM_CYSCREEN) ,
+                NULL ,
+                NULL ,
+                m_instance ,
+                NULL );
+
+        if ( m_window != NULL ) {
+            // Backup cursor before removing it
+            m_prevCursor = SetCursor( NULL );
+        }
+    }
+}
+
 void TestScreen::setColor( ProcColor borderColor ) {
+    // Remove old color
+    if ( m_borderColor == Red ) {
+        m_outlineColor.r = 0;
+    }
+    else if ( m_borderColor == Green ) {
+        m_outlineColor.g = 0;
+    }
+    else if ( m_borderColor == Blue ) {
+        m_outlineColor.b = 0;
+    }
+
+    // Set color indicator
     m_borderColor = borderColor;
+
+    // Create new color
+    if ( m_borderColor == Red ) {
+        m_outlineColor.r = 255;
+    }
+    else if ( m_borderColor == Green ) {
+        m_outlineColor.g = 255;
+    }
+    else if ( m_borderColor == Blue ) {
+        m_outlineColor.b = 255;
+    }
+
+    DeleteObject( m_colorBrush );
+    m_colorBrush = CreateSolidBrush( RGB( m_outlineColor.r , m_outlineColor.g , m_outlineColor.b ) );
 }
 
 void TestScreen::display() {
-    sf::Color outlineColor( 0 , 0 , 0 );
+    if ( m_window != NULL ) {
+        // Make window visible before drawing to it
+        ShowWindow( m_window , SW_SHOWNORMAL );
+        BringWindowToTop( m_window );
 
-    if ( m_borderColor == Red ) {
-        outlineColor.r = 255;
+        HDC windowHdc = GetDC( m_window );
+
+        RECT windowSize;
+        GetClientRect( m_window , &windowSize );
+
+        HBRUSH blackBrush = CreateSolidBrush( RGB( 0 , 0 , 0 ) );
+
+        POINT rectanglePts[4];
+        HRGN rectRgn;
+
+        /* ===== Draw Pattern ===== */
+        // Draw colored border
+        rectanglePts[0] = { 0 , 0 };
+        rectanglePts[1] = { windowSize.right , 0 };
+        rectanglePts[2] = { windowSize.right , windowSize.bottom };
+        rectanglePts[3] = { 0 , windowSize.bottom };
+
+        rectRgn = CreatePolygonRgn( rectanglePts , 4 , ALTERNATE );
+        FillRgn( windowHdc , rectRgn , m_colorBrush );
+        DeleteObject( rectRgn );
+
+        // Fill inside with black
+        rectanglePts[0] = { 20 , 20 };
+        rectanglePts[1] = { windowSize.right - 20 , 20 };
+        rectanglePts[2] = { windowSize.right - 20 , windowSize.bottom - 20 };
+        rectanglePts[3] = { 20 , windowSize.bottom - 20 };
+
+        rectRgn = CreatePolygonRgn( rectanglePts , 4 , ALTERNATE );
+        FillRgn( windowHdc , rectRgn , blackBrush );
+        DeleteObject( rectRgn );
+        /* ======================== */
+
+        DeleteObject( blackBrush );
+        DeleteObject( rectRgn );
+
+        ReleaseDC( m_window , windowHdc );
     }
-    else if ( m_borderColor == Green ) {
-        outlineColor.g = 255;
-    }
-    else if ( m_borderColor == Blue ) {
-        outlineColor.b = 255;
-    }
-
-    /* ===== Create and draw the calibration graphic ===== */
-    // Create border for window
-    static sf::RectangleShape border( sf::Vector2f( getSize().x - 40.f , getSize().y - 40.f ) );
-    border.setFillColor( sf::Color( 0 , 0 , 0 , 0 ) );
-    border.setOutlineThickness( 20 );
-    border.setOutlineColor( outlineColor );
-
-    // Set graphics positions before drawing them
-    border.setPosition( 20.f , 20.f );
-
-    // Make window visible before drawing to it
-    ShowWindow( m_window , SW_SHOWNORMAL );
-
-    // Draw graphics to window
-    clear( sf::Color( 0 , 0 , 0 ) );
-    draw( border );
-    RenderWindow::display();
 }
 
 void TestScreen::close() {
-    DestroyWindow( m_window );
-    RenderWindow::close();
+    if ( m_window != NULL ) {
+        DestroyWindow( m_window );
+        m_window = NULL;
+
+        // Restore the cursor from before this window was created
+        SetCursor( m_prevCursor );
+    }
 }
 
+bool TestScreen::unregisterClass() {
+    BOOL unregistered = UnregisterClass( m_windowClassName , m_instance );
+
+    if ( unregistered ) {
+        DeleteObject( m_mainBrush );
+        DeleteObject( m_colorBrush );
+    }
+
+    return unregistered;
+}
+
+LRESULT CALLBACK TestScreen::OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LParam ) {
+    return DefWindowProc( Handle , Message , WParam , LParam );
 }

@@ -11,32 +11,51 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-#include <SFML/Graphics/RenderWindow.hpp>
 #include "Processing.hpp"
 
-namespace sf {
+typedef struct Color {
+    unsigned char r;
+    unsigned char g;
+    unsigned char b;
+} Color;
 
-class TestScreen : public sf::RenderWindow , public Processing {
+class TestScreen : public Processing {
 public:
-    TestScreen();
-    TestScreen( const char* className , HWND parentWin , HINSTANCE instance );
+    TestScreen( HINSTANCE instance = NULL , bool createNow = false );
 
     virtual ~TestScreen();
+
+    // Create HWND
+    void create();
 
     void setColor( Processing::ProcColor borderColor );
 
     // Displays test pattern with previously set border color
     void display();
 
-    // Destroys HWND and closes RenderWindow
+    // Destroy HWND
     void close();
 
+    static bool unregisterClass();
+
 private:
+    static const char* m_windowClassName;
+
+    static WNDCLASSEX m_windowClass;
+    static HINSTANCE m_instance;
+    static HBRUSH m_mainBrush;
+    static HBRUSH m_colorBrush;
+    static bool m_classInitialized;
+
+    static LRESULT CALLBACK OnEvent( HWND , UINT , WPARAM , LPARAM );
+
+    void eventLoop();
+
     HWND m_window;
-    HCURSOR m_cursor;
+    HCURSOR m_prevCursor;
+
+    Color m_outlineColor;
     ProcColor m_borderColor;
 };
-
-}
 
 #endif // TEST_SCREEN_HPP
