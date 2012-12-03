@@ -245,12 +245,12 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
             }
 
             case IDM_CHANGE_MONITOR: {
-                /*EnumDisplayMonitors(
+                EnumDisplayMonitors(
                         NULL, // List all monitors
                         NULL, // Don't clip area
                         MonitorEnumProc,
-                        NULL // user data
-                );*/
+                        0 // user data
+                );
 
                 break;
             }
@@ -259,6 +259,12 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
                 DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), Handle, About);
             }
         }
+
+        break;
+    }
+
+    case WM_DISPLAYCHANGE: {
+
 
         break;
     }

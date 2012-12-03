@@ -25,13 +25,13 @@
 #include <string>
 #include <opencv2/core/types_c.h>
 
-#include <SFML/System/Clock.hpp>
-#include <SFML/System/Mutex.hpp>
+#include "SFML/System/Clock.hpp"
+#include "SFML/System/Mutex.hpp"
 
-#define WM_KINECT_VIDEOSTART (WM_APP + 0x0001)
-#define WM_KINECT_VIDEOSTOP (WM_APP + 0x0002)
-#define WM_KINECT_DEPTHSTART (WM_APP + 0x0003)
-#define WM_KINECT_DEPTHSTOP (WM_APP + 0x0004)
+#define WM_KINECT_VIDEOSTART  (WM_APP + 0x0001)
+#define WM_KINECT_VIDEOSTOP   (WM_APP + 0x0002)
+#define WM_KINECT_DEPTHSTART  (WM_APP + 0x0003)
+#define WM_KINECT_DEPTHSTOP   (WM_APP + 0x0004)
 
 class Kinect : public Processing {
 public:

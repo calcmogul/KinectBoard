@@ -11,7 +11,7 @@
 #include "CKinect/parse.h"
 #include "Kinect.hpp"
 #include "WinAPIWrapper.h"
-#include <SFML/Graphics/Image.hpp>
+#include "SFML/Graphics/Image.hpp"
 
 Kinect::Kinect() :
         m_vidImage( NULL ) ,
