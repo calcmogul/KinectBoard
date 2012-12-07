@@ -72,6 +72,7 @@ int findImageLocation(IplImage *image, struct plist_t **plist_out,
     int channel);
 IplImage *
 RGBtoIplImage(uint8_t *rgbimage, int width, int height);
+void saveRGBimage(IplImage *image, char *path);
 
 #ifdef __cplusplus
 }

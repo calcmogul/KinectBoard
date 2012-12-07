@@ -13,6 +13,8 @@
 #include <windows.h>
 #include <cstdlib>
 #include <cstring>
+#include <list>
+#include <iostream> // TODO Remove me
 
 #include "Resource.h"
 
@@ -28,8 +30,10 @@ HICON kinectOFF = NULL;
 Kinect* projectorKinectPtr = NULL;
 
 LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LParam );
+LRESULT CALLBACK MonitorProc( HWND Handle , UINT Message , WPARAM WParam , LPARAM LParam );
 
-INT_PTR CALLBACK About( HWND hDlg , UINT message , WPARAM wParam , LPARAM lParam );
+INT_PTR CALLBACK AboutCbk( HWND hDlg , UINT message , WPARAM wParam , LPARAM lParam );
+INT_PTR CALLBACK MonitorCbk(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
 
 BOOL CALLBACK MonitorEnumProc(
     HMONITOR hMonitor,
@@ -74,6 +78,21 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     WindowClass.lpszMenuName  = "mainMenu";
     WindowClass.lpszClassName = mainClassName;
     WindowClass.hIconSm       = kinectOFF;
+    RegisterClassEx(&WindowClass);
+
+    ZeroMemory( &WindowClass , sizeof(WNDCLASSEX) );
+    WindowClass.cbSize        = sizeof(WNDCLASSEX);
+    WindowClass.style         = 0;
+    WindowClass.lpfnWndProc   = &MonitorProc;
+    WindowClass.cbClsExtra    = 0;
+    WindowClass.cbWndExtra    = 0;
+    WindowClass.hInstance     = Instance;
+    WindowClass.hIcon         = kinectON;
+    WindowClass.hCursor       = NULL;
+    WindowClass.hbrBackground = NULL;
+    WindowClass.lpszMenuName  = NULL;
+    WindowClass.lpszClassName = "MonitorButton";
+    WindowClass.hIconSm       = kinectON;
     RegisterClassEx(&WindowClass);
 
     MSG Message;
@@ -140,6 +159,7 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     DestroyIcon( kinectOFF );
 
     UnregisterClass( mainClassName , Instance );
+    UnregisterClass( "monitorButton" , Instance );
     TestScreen::unregisterClass();
 
     return Message.wParam;
@@ -190,7 +210,7 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
 
     case WM_COMMAND: {
         int wmId    = LOWORD( WParam );
-        int wmEvent = HIWORD( WParam );
+        //int wmEvent = HIWORD( WParam );
 
         switch( wmId ) {
             case IDC_RECALIBRATE_BUTTON: {
@@ -202,13 +222,13 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
                         testWin.setColor( Processing::Red );
                         testWin.display();
                         // Give Kinect time to get image w/ test pattern in it
-                        Sleep( 600 );
+                        Sleep( 500 );
                         projectorKinectPtr->setCalibImage( Processing::Red );
 
                         testWin.setColor( Processing::Blue );
                         testWin.display();
                         // Give Kinect time to get image w/ test pattern in it
-                        Sleep( 600 );
+                        Sleep( 500 );
                         projectorKinectPtr->setCalibImage( Processing::Blue );
 
                         projectorKinectPtr->calibrate();
@@ -245,18 +265,69 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
             }
 
             case IDM_CHANGE_MONITOR: {
+                std::list<RECT*> monitors;
                 EnumDisplayMonitors(
                         NULL, // List all monitors
                         NULL, // Don't clip area
                         MonitorEnumProc,
-                        0 // user data
+                        (LPARAM)&monitors // User data
                 );
+
+                //GetWindowLong( Handle );
+
+                HWND monitorDialog = CreateWindowEx( 0,
+                        "MonitorButton",
+                        "Change Board Monitor",
+                        //DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_CAPTION | WS_SYSMENU,
+                        WS_SYSMENU | WS_CAPTION | WS_VISIBLE | WS_CLIPCHILDREN,
+                        ( GetSystemMetrics(SM_CXSCREEN) - 340 ) / 2,
+                        ( GetSystemMetrics(SM_CYSCREEN) - 124 ) / 2,
+                        340,
+                        124,
+                        Handle,
+                        reinterpret_cast<HMENU>( NULL ),
+                        hInst,
+                        NULL);
+
+                MSG Message;
+
+                while ( GetMessage( &Message , monitorDialog , 0 , 0 ) > 0 ) {
+                    TranslateMessage( &Message );
+                    DispatchMessage( &Message );
+                }
+
+                for ( std::list<RECT*>::iterator i = monitors.begin() ; i != monitors.end() ; i++ ) {
+                    CreateWindowEx( 0,
+                            "BUTTON",
+                            "",
+                            WS_POPUP | WS_VISIBLE,
+                            (*i)->left / 5,
+                            (*i)->top / 5,
+                            ( (*i)->right - (*i)->left ) / 5,
+                            ( (*i)->bottom - (*i)->top ) / 5,
+                            monitorDialog,
+                            reinterpret_cast<HMENU>( NULL ),
+                            hInst,
+                            NULL);
+                }
+
+                //DialogBox(hInst, MAKEINTRESOURCE(IDD_MONITORBOX), Handle, MonitorCbk);
+
+                //DestroyWindow( monitorDialog );
+
+                unsigned short count = 0;
+                for ( std::list<RECT*>::iterator i = monitors.begin() ; i != monitors.end() ; i++ ) {
+                    std::cout << count << ": (" << (*i)->left << ", " << (*i)->top << ") -> (" << (*i)->right << ", " << (*i)->bottom << ")\n";
+                    delete *i;
+                    count++;
+                }
+                monitors.clear();
 
                 break;
             }
 
             case IDM_ABOUT: {
-                DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), Handle, About);
+                DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), Handle, AboutCbk);
             }
         }
 
@@ -359,8 +430,38 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
     return 0;
 }
 
-// Message handler for about box.
-INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK MonitorProc( HWND Handle , UINT Message , WPARAM WParam , LPARAM LParam ) {
+    switch ( Message ) {
+    default: {
+        return DefWindowProc( Handle , Message , WParam , LParam );
+    }
+    }
+
+    return 0;
+}
+
+// Message handler for "About" box
+INT_PTR CALLBACK AboutCbk(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    UNREFERENCED_PARAMETER(lParam);
+    switch (message)
+    {
+    case WM_INITDIALOG:
+        return (INT_PTR)TRUE;
+
+    case WM_COMMAND:
+        if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
+        {
+            EndDialog(hDlg, LOWORD(wParam));
+            return (INT_PTR)TRUE;
+        }
+        break;
+    }
+    return (INT_PTR)FALSE;
+}
+
+// Message handler for "Change Monitor" box
+INT_PTR CALLBACK MonitorCbk(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
     UNREFERENCED_PARAMETER(lParam);
     switch (message)
@@ -385,9 +486,11 @@ BOOL CALLBACK MonitorEnumProc(
     LPRECT lprcMonitor,
     LPARAM dwData
 ) {
+    std::list<RECT*>* monitors = (std::list<RECT*>*)dwData;
 
+    monitors->push_back( new RECT( { lprcMonitor->left , lprcMonitor->top , lprcMonitor->right , lprcMonitor->bottom } ) );
 
-    return FALSE;
+    return TRUE;
 }
 
 BOOL CALLBACK StartStreamChildProc(

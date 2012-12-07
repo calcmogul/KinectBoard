@@ -12,7 +12,7 @@ const char* TestScreen::m_windowClassName = "TestScreen";
 
 WNDCLASSEX TestScreen::m_windowClass;
 HINSTANCE TestScreen::m_instance;
-HBRUSH TestScreen::m_mainBrush;
+HBRUSH TestScreen::m_whiteBrush;
 HBRUSH TestScreen::m_colorBrush;
 bool TestScreen::m_classInitialized = false;
 
@@ -30,7 +30,7 @@ TestScreen::TestScreen( HINSTANCE instance , bool createNow ) :
             m_instance = GetModuleHandle( NULL );
         }
 
-        m_mainBrush = CreateSolidBrush( RGB( 0 , 0 , 0 ) );
+        m_whiteBrush = CreateSolidBrush( RGB( 255 , 255 , 255 ) );
         m_colorBrush = CreateSolidBrush( RGB( 255 , 0 , 0 ) );
 
         ZeroMemory( &m_windowClass , sizeof(WNDCLASSEX) );
@@ -42,7 +42,7 @@ TestScreen::TestScreen( HINSTANCE instance , bool createNow ) :
         m_windowClass.hInstance     = m_instance;
         m_windowClass.hIcon         = NULL;
         m_windowClass.hCursor       = NULL;
-        m_windowClass.hbrBackground = m_mainBrush;
+        m_windowClass.hbrBackground = m_whiteBrush;
         m_windowClass.lpszMenuName  = NULL;
         m_windowClass.lpszClassName = m_windowClassName;
         m_windowClass.hIconSm       = NULL;
@@ -85,7 +85,7 @@ void TestScreen::create() {
 }
 
 void TestScreen::setColor( ProcColor borderColor ) {
-    // Remove old color
+    // Remove old color (make it black)
     if ( m_borderColor == Red ) {
         m_outlineColor.r = 0;
     }
@@ -99,7 +99,9 @@ void TestScreen::setColor( ProcColor borderColor ) {
     // Set color indicator
     m_borderColor = borderColor;
 
-    // Create new color
+    /* Create new color
+     * Processing::Black changes nothing here, so the color remains black
+     */
     if ( m_borderColor == Red ) {
         m_outlineColor.r = 255;
     }
@@ -135,7 +137,7 @@ bool TestScreen::unregisterClass() {
     BOOL unregistered = UnregisterClass( m_windowClassName , m_instance );
 
     if ( unregistered ) {
-        DeleteObject( m_mainBrush );
+        DeleteObject( m_whiteBrush );
         DeleteObject( m_colorBrush );
     }
 
@@ -150,8 +152,6 @@ LRESULT CALLBACK TestScreen::OnEvent( HWND Handle , UINT Message , WPARAM WParam
 
         RECT windowSize;
         GetClientRect( Handle , &windowSize );
-
-        HBRUSH blackBrush = CreateSolidBrush( RGB( 0 , 0 , 0 ) );
 
         POINT rectanglePts[4];
         HRGN rectRgn;
@@ -174,11 +174,10 @@ LRESULT CALLBACK TestScreen::OnEvent( HWND Handle , UINT Message , WPARAM WParam
         rectanglePts[3] = { 20 , windowSize.bottom - 20 };
 
         rectRgn = CreatePolygonRgn( rectanglePts , 4 , ALTERNATE );
-        FillRgn( windowHdc , rectRgn , blackBrush );
+        FillRgn( windowHdc , rectRgn , m_whiteBrush );
         DeleteObject( rectRgn );
         /* ======================== */
 
-        DeleteObject( blackBrush );
         DeleteObject( rectRgn );
 
         EndPaint( Handle , &ps );

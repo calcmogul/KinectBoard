@@ -146,6 +146,7 @@ void Kinect::stopVideoStream() {
     // If the Kinect instance is valid, stop the rgb image stream if it's running
     if ( m_kinect != NULL ) {
         knt_rgb_stopstream( m_kinect->rgb );
+        m_foundScreen = false;
 
         m_vidWindowMutex.lock();
         PostMessage( m_vidWindow , WM_KINECT_VIDEOSTOP , 0 , 0 );
@@ -244,15 +245,15 @@ bool Kinect::saveDepth( const std::string& fileName ) const {
 
 void Kinect::setCalibImage( Processing::ProcColor colorWanted ) {
     if ( isVideoStreamRunning() ) {
-        //char* fileName = (char*)std::malloc(16);
+        char* fileName = (char*)std::malloc(16);
 
         m_vidImageMutex.lock();
         std::memcpy( m_calibImages[colorWanted]->imageData , m_vidBuffer , ImageVars::width * ImageVars::height * 3 );
         m_vidImageMutex.unlock();
 
-        /*std::sprintf( fileName , "calib-%d.png" , colorWanted );
+        std::sprintf( fileName , "calib-%d.png" , colorWanted );
         saveVideo( fileName );
-        std::free( fileName );*/
+        std::free( fileName );
     }
 }
 
@@ -282,7 +283,12 @@ void Kinect::calibrate() {
     /* Use the calibration images to locate a quadrilateral in the
      * image which represents the screen (returns 1 on failure)
      */
-    m_foundScreen = !findScreenBox( redCalib , greenCalib , blueCalib , &m_quad );
+    saveRGBimage(redCalib, (char *)"redCalib-rgb.data");
+    saveRGBimage(blueCalib, (char *)"blueCalib-rgb.data");
+    findScreenBox( blueCalib , greenCalib , redCalib , &m_quad );
+
+    // If no box was found, m_quad will be NULL
+    m_foundScreen = (m_quad != NULL);
 }
 
 void Kinect::lookForCursors() {
@@ -349,10 +355,12 @@ void Kinect::newVideoFrame( struct nstream_t* streamObject , void* classObject )
 
     if ( kinectPtr->m_foundScreen ) {
         // Draw lines to show user where the screen is
-        cvLine( kinectPtr->m_cvVidImage , kinectPtr->m_quad->point[0] , kinectPtr->m_quad->point[1] , lineColor , 3 , 8 , 0 );
-        cvLine( kinectPtr->m_cvVidImage , kinectPtr->m_quad->point[1] , kinectPtr->m_quad->point[2] , lineColor , 3 , 8 , 0 );
-        cvLine( kinectPtr->m_cvVidImage , kinectPtr->m_quad->point[2] , kinectPtr->m_quad->point[3] , lineColor , 3 , 8 , 0 );
-        cvLine( kinectPtr->m_cvVidImage , kinectPtr->m_quad->point[3] , kinectPtr->m_quad->point[0] , lineColor , 3 , 8 , 0 );
+        cvLine( kinectPtr->m_cvVidImage , kinectPtr->m_quad->point[0] , kinectPtr->m_quad->point[1] , lineColor , 2 , 8 , 0 );
+        cvLine( kinectPtr->m_cvVidImage , kinectPtr->m_quad->point[1] , kinectPtr->m_quad->point[2] , lineColor , 2 , 8 , 0 );
+        cvLine( kinectPtr->m_cvVidImage , kinectPtr->m_quad->point[2] , kinectPtr->m_quad->point[3] , lineColor , 2 , 8 , 0 );
+        cvLine( kinectPtr->m_cvVidImage , kinectPtr->m_quad->point[3] , kinectPtr->m_quad->point[0] , lineColor , 2 , 8 , 0 );
+
+        //kinectPtr->lookForCursors(); // FIXME
     }
 
     // Perform conversion from RGBA to BGRA for use as image data in CreateBitmap

@@ -43,7 +43,7 @@ private:
 
     static WNDCLASSEX m_windowClass;
     static HINSTANCE m_instance;
-    static HBRUSH m_mainBrush;
+    static HBRUSH m_whiteBrush;
     static HBRUSH m_colorBrush;
     static bool m_classInitialized;
 

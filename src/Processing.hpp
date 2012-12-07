@@ -10,10 +10,10 @@
 class Processing {
 public:
     enum ProcColor {
-        Red = 0,
+        Red   = 0,
         Green = 1,
-        Blue = 2,
-        Size = 3
+        Blue  = 2,
+        Size  = 3
     };
 };
 
