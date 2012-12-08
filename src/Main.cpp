@@ -21,7 +21,16 @@
 #include "TestScreen.hpp"
 #include "Kinect.hpp"
 
-// global because the drawing is set up to be continuous in CALLBACK OnEvent
+typedef struct CurrentMonitor {
+    // index of monitor in global list
+    unsigned int index;
+    HWND activeButton;
+
+    // size of monitor client area
+    RECT size;
+} monitorUsed;
+
+// Global because the drawing is set up to be continuous in CALLBACK OnEvent
 HINSTANCE hInst = NULL;
 HWND videoWindow = NULL;
 HWND depthWindow = NULL;
@@ -29,11 +38,14 @@ HICON kinectON = NULL;
 HICON kinectOFF = NULL;
 Kinect* projectorKinectPtr = NULL;
 
+// Used for choosing on which monitor to draw test image
+std::list<RECT*> gMonitors;
+CurrentMonitor currentMonitor;
+
 LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LParam );
-LRESULT CALLBACK MonitorProc( HWND Handle , UINT Message , WPARAM WParam , LPARAM LParam );
 
 INT_PTR CALLBACK AboutCbk( HWND hDlg , UINT message , WPARAM wParam , LPARAM lParam );
-INT_PTR CALLBACK MonitorCbk(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
+INT_PTR CALLBACK MonitorCbk( HWND hDlg , UINT message , WPARAM wParam , LPARAM lParam );
 
 BOOL CALLBACK MonitorEnumProc(
     HMONITOR hMonitor,
@@ -42,12 +54,12 @@ BOOL CALLBACK MonitorEnumProc(
     LPARAM dwData
 );
 
-BOOL CALLBACK StartStreamChildProc(
+BOOL CALLBACK StartStreamChildCbk(
     HWND hwndChild,
     LPARAM lParam
 );
 
-BOOL CALLBACK StopStreamChildProc(
+BOOL CALLBACK StopStreamChildCbk(
     HWND hwndChild,
     LPARAM lParam
 );
@@ -78,21 +90,6 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     WindowClass.lpszMenuName  = "mainMenu";
     WindowClass.lpszClassName = mainClassName;
     WindowClass.hIconSm       = kinectOFF;
-    RegisterClassEx(&WindowClass);
-
-    ZeroMemory( &WindowClass , sizeof(WNDCLASSEX) );
-    WindowClass.cbSize        = sizeof(WNDCLASSEX);
-    WindowClass.style         = 0;
-    WindowClass.lpfnWndProc   = &MonitorProc;
-    WindowClass.cbClsExtra    = 0;
-    WindowClass.cbWndExtra    = 0;
-    WindowClass.hInstance     = Instance;
-    WindowClass.hIcon         = kinectON;
-    WindowClass.hCursor       = NULL;
-    WindowClass.hbrBackground = NULL;
-    WindowClass.lpszMenuName  = NULL;
-    WindowClass.lpszClassName = "MonitorButton";
-    WindowClass.hIconSm       = kinectON;
     RegisterClassEx(&WindowClass);
 
     MSG Message;
@@ -165,8 +162,8 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     return Message.wParam;
 }
 
-LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LParam ) {
-    switch ( Message ) {
+LRESULT CALLBACK OnEvent( HWND handle , UINT message , WPARAM wParam , LPARAM lParam ) {
+    switch ( message ) {
     case WM_CREATE: {
         HWND recalibButton = CreateWindowEx( 0,
                 "BUTTON",
@@ -176,7 +173,7 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
                 ImageVars::height - 9 - 28,
                 100,
                 28,
-                Handle,
+                handle,
                 reinterpret_cast<HMENU>( IDC_RECALIBRATE_BUTTON ),
                 hInst,
                 NULL);
@@ -195,7 +192,7 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
                 ImageVars::height - 9 - 28,
                 100,
                 28,
-                Handle,
+                handle,
                 reinterpret_cast<HMENU>( IDC_STREAM_TOGGLE_BUTTON ),
                 hInst,
                 NULL);
@@ -209,8 +206,8 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
     }
 
     case WM_COMMAND: {
-        int wmId    = LOWORD( WParam );
-        //int wmEvent = HIWORD( WParam );
+        int wmId    = LOWORD( wParam );
+        //int wmEvent = HIWORD( wParam );
 
         switch( wmId ) {
             case IDC_RECALIBRATE_BUTTON: {
@@ -222,13 +219,13 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
                         testWin.setColor( Processing::Red );
                         testWin.display();
                         // Give Kinect time to get image w/ test pattern in it
-                        Sleep( 500 );
+                        Sleep( 750 );
                         projectorKinectPtr->setCalibImage( Processing::Red );
 
                         testWin.setColor( Processing::Blue );
                         testWin.display();
                         // Give Kinect time to get image w/ test pattern in it
-                        Sleep( 500 );
+                        Sleep( 750 );
                         projectorKinectPtr->setCalibImage( Processing::Blue );
 
                         projectorKinectPtr->calibrate();
@@ -241,7 +238,7 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
             case IDC_STREAM_TOGGLE_BUTTON: {
                 if ( projectorKinectPtr != NULL ) {
                     // If button was pressed from video display window
-                    if ( Handle == videoWindow ) {
+                    if ( handle == videoWindow ) {
                         if ( projectorKinectPtr->isVideoStreamRunning() ) {
                             projectorKinectPtr->stopVideoStream();
                         }
@@ -251,7 +248,7 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
                     }
 
                     // If button was pressed from depth image display window
-                    else if ( Handle == depthWindow ) {
+                    else if ( handle == depthWindow ) {
                         if ( projectorKinectPtr->isDepthStreamRunning() ) {
                             projectorKinectPtr->stopDepthStream();
                         }
@@ -265,69 +262,28 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
             }
 
             case IDM_CHANGE_MONITOR: {
-                std::list<RECT*> monitors;
                 EnumDisplayMonitors(
                         NULL, // List all monitors
                         NULL, // Don't clip area
                         MonitorEnumProc,
-                        (LPARAM)&monitors // User data
+                        (LPARAM)&gMonitors // User data
                 );
 
-                //GetWindowLong( Handle );
-
-                HWND monitorDialog = CreateWindowEx( 0,
-                        "MonitorButton",
-                        "Change Board Monitor",
-                        //DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_CAPTION | WS_SYSMENU,
-                        WS_SYSMENU | WS_CAPTION | WS_VISIBLE | WS_CLIPCHILDREN,
-                        ( GetSystemMetrics(SM_CXSCREEN) - 340 ) / 2,
-                        ( GetSystemMetrics(SM_CYSCREEN) - 124 ) / 2,
-                        340,
-                        124,
-                        Handle,
-                        reinterpret_cast<HMENU>( NULL ),
-                        hInst,
-                        NULL);
-
-                MSG Message;
-
-                while ( GetMessage( &Message , monitorDialog , 0 , 0 ) > 0 ) {
-                    TranslateMessage( &Message );
-                    DispatchMessage( &Message );
-                }
-
-                for ( std::list<RECT*>::iterator i = monitors.begin() ; i != monitors.end() ; i++ ) {
-                    CreateWindowEx( 0,
-                            "BUTTON",
-                            "",
-                            WS_POPUP | WS_VISIBLE,
-                            (*i)->left / 5,
-                            (*i)->top / 5,
-                            ( (*i)->right - (*i)->left ) / 5,
-                            ( (*i)->bottom - (*i)->top ) / 5,
-                            monitorDialog,
-                            reinterpret_cast<HMENU>( NULL ),
-                            hInst,
-                            NULL);
-                }
-
-                //DialogBox(hInst, MAKEINTRESOURCE(IDD_MONITORBOX), Handle, MonitorCbk);
-
-                //DestroyWindow( monitorDialog );
+                DialogBox( hInst , MAKEINTRESOURCE(IDD_MONITORBOX) , handle , MonitorCbk );
 
                 unsigned short count = 0;
-                for ( std::list<RECT*>::iterator i = monitors.begin() ; i != monitors.end() ; i++ ) {
+                for ( std::list<RECT*>::iterator i = gMonitors.begin() ; i != gMonitors.end() ; i++ ) {
                     std::cout << count << ": (" << (*i)->left << ", " << (*i)->top << ") -> (" << (*i)->right << ", " << (*i)->bottom << ")\n";
                     delete *i;
                     count++;
                 }
-                monitors.clear();
+                gMonitors.clear();
 
                 break;
             }
 
             case IDM_ABOUT: {
-                DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), Handle, AboutCbk);
+                DialogBox( hInst , MAKEINTRESOURCE(IDD_ABOUTBOX) , handle , AboutCbk );
             }
         }
 
@@ -344,26 +300,26 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
         PAINTSTRUCT ps;
         HDC hdc;
 
-        hdc = BeginPaint( Handle , &ps );
+        hdc = BeginPaint( handle , &ps );
 
         // If we're painting the video display window
-        if ( Handle == videoWindow ) {
+        if ( handle == videoWindow ) {
             projectorKinectPtr->displayVideo( videoWindow , 0 , 0 , hdc );
         }
 
         // If we're painting the depth image display window
-        else if ( Handle == depthWindow ) {
+        else if ( handle == depthWindow ) {
             projectorKinectPtr->displayDepth( depthWindow , 0 , 0 , hdc );
         }
 
-        EndPaint( Handle , &ps );
+        EndPaint( handle , &ps );
 
         break;
     }
 
     case WM_DESTROY: {
         // If a display window is being closed, exit the application
-        if ( Handle == videoWindow || Handle == depthWindow ) {
+        if ( handle == videoWindow || handle == depthWindow ) {
             PostQuitMessage( 0 );
         }
 
@@ -372,12 +328,12 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
 
     case WM_KINECT_VIDEOSTART: {
         // Change video window icon to green because the stream started
-        PostMessage( Handle , WM_SETICON , ICON_SMALL , (LPARAM)kinectON );
-        PostMessage( Handle , WM_SETICON , ICON_BIG , (LPARAM)kinectON );
+        PostMessage( handle , WM_SETICON , ICON_SMALL , (LPARAM)kinectON );
+        PostMessage( handle , WM_SETICON , ICON_BIG , (LPARAM)kinectON );
 
         // Change Start/Stop button text to "Stop"
         char* windowText = (char*)std::malloc( 16 );
-        EnumChildWindows( Handle , StartStreamChildProc , (LPARAM)windowText );
+        EnumChildWindows( handle , StartStreamChildCbk , (LPARAM)windowText );
         std::free( windowText );
 
         break;
@@ -385,12 +341,12 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
 
     case WM_KINECT_VIDEOSTOP: {
         // Change video window icon to red because the stream stopped
-        PostMessage( Handle , WM_SETICON , ICON_SMALL , (LPARAM)kinectOFF );
-        PostMessage( Handle , WM_SETICON , ICON_BIG , (LPARAM)kinectOFF );
+        PostMessage( handle , WM_SETICON , ICON_SMALL , (LPARAM)kinectOFF );
+        PostMessage( handle , WM_SETICON , ICON_BIG , (LPARAM)kinectOFF );
 
         // Change Start/Stop button text to "Start"
         char* windowText = (char*)std::malloc( 16 );
-        EnumChildWindows( Handle , StopStreamChildProc , (LPARAM)windowText );
+        EnumChildWindows( handle , StopStreamChildCbk , (LPARAM)windowText );
         std::free( windowText );
 
         break;
@@ -398,12 +354,12 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
 
     case WM_KINECT_DEPTHSTART: {
         // Change depth window icon to green because the stream started
-        PostMessage( Handle , WM_SETICON , ICON_SMALL , (LPARAM)kinectON );
-        PostMessage( Handle , WM_SETICON , ICON_BIG , (LPARAM)kinectON );
+        PostMessage( handle , WM_SETICON , ICON_SMALL , (LPARAM)kinectON );
+        PostMessage( handle , WM_SETICON , ICON_BIG , (LPARAM)kinectON );
 
         // Change Start/Stop button text to "Stop"
         char* windowText = (char*)std::malloc( 16 );
-        EnumChildWindows( Handle , StartStreamChildProc , (LPARAM)windowText );
+        EnumChildWindows( handle , StartStreamChildCbk , (LPARAM)windowText );
         std::free( windowText );
 
         break;
@@ -411,72 +367,122 @@ LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LP
 
     case WM_KINECT_DEPTHSTOP: {
         // Change depth window icon to red because the stream stopped
-        PostMessage( Handle , WM_SETICON , ICON_SMALL , (LPARAM)kinectOFF );
-        PostMessage( Handle , WM_SETICON , ICON_BIG , (LPARAM)kinectOFF );
+        PostMessage( handle , WM_SETICON , ICON_SMALL , (LPARAM)kinectOFF );
+        PostMessage( handle , WM_SETICON , ICON_BIG , (LPARAM)kinectOFF );
 
         // Change Start/Stop button text to "Start"
         char* windowText = (char*)std::malloc( 16 );
-        EnumChildWindows( Handle , StopStreamChildProc , (LPARAM)windowText );
+        EnumChildWindows( handle , StopStreamChildCbk , (LPARAM)windowText );
         std::free( windowText );
 
         break;
     }
 
     default: {
-        return DefWindowProc( Handle , Message , WParam , LParam );
+        return DefWindowProc( handle , message , wParam , lParam );
     }
     }
 
     return 0;
-}
-
-LRESULT CALLBACK MonitorProc( HWND Handle , UINT Message , WPARAM WParam , LPARAM LParam ) {
-    switch ( Message ) {
-    default: {
-        return DefWindowProc( Handle , Message , WParam , LParam );
-    }
-    }
-
-    return 0;
-}
-
-// Message handler for "About" box
-INT_PTR CALLBACK AboutCbk(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
-{
-    UNREFERENCED_PARAMETER(lParam);
-    switch (message)
-    {
-    case WM_INITDIALOG:
-        return (INT_PTR)TRUE;
-
-    case WM_COMMAND:
-        if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
-        {
-            EndDialog(hDlg, LOWORD(wParam));
-            return (INT_PTR)TRUE;
-        }
-        break;
-    }
-    return (INT_PTR)FALSE;
 }
 
 // Message handler for "Change Monitor" box
-INT_PTR CALLBACK MonitorCbk(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
-{
-    UNREFERENCED_PARAMETER(lParam);
-    switch (message)
-    {
-    case WM_INITDIALOG:
+INT_PTR CALLBACK MonitorCbk( HWND hDlg , UINT message , WPARAM wParam , LPARAM lParam ) {
+    switch ( message ) {
+    case WM_INITDIALOG: {
+        for ( std::list<RECT*>::iterator i = gMonitors.begin() ; i != gMonitors.end() ; i++ ) {
+            CreateWindowEx( 0,
+                "BUTTON",
+                "",
+                WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+                (*i)->left / 10,
+                (*i)->top / 10,
+                ( (*i)->right - (*i)->left ) / 10,
+                ( (*i)->bottom - (*i)->top ) / 10,
+                hDlg,
+                reinterpret_cast<HMENU>( NULL ),
+                hInst,
+                NULL);
+        }
+
         return (INT_PTR)TRUE;
+    }
+
+    case WM_DRAWITEM: {
+         LPDRAWITEMSTRUCT pDIS = (LPDRAWITEMSTRUCT)lParam;
+
+         POINT rectanglePts[4];
+         HRGN rectRgn;
+
+         rectanglePts[0] = { 0 , 0 };
+         rectanglePts[1] = { pDIS->rcItem.right , 0 };
+         rectanglePts[2] = { pDIS->rcItem.right , pDIS->rcItem.bottom };
+         rectanglePts[3] = { 0 , pDIS->rcItem.bottom };
+
+         rectRgn = CreatePolygonRgn( rectanglePts , 4 , ALTERNATE );
+
+         // If button being drawn represents the active monitor
+         if ( currentMonitor.activeButton == pDIS->hwndItem ) {
+             HBRUSH blueBrush = CreateSolidBrush( RGB( 0 , 0 , 120 ) );
+
+             // Draw blue background to window
+             FillRgn( pDIS->hDC , rectRgn , blueBrush );
+
+             DeleteObject( blueBrush );
+         }
+         else {
+             HBRUSH normalBrush = CreateSolidBrush( RGB( 70 , 70 , 70 ) );
+
+             // Draw normal background to window
+             FillRgn( pDIS->hDC , rectRgn , normalBrush );
+
+             DeleteObject( normalBrush );
+         }
+
+         DeleteObject( rectRgn );
+
+         return (INT_PTR)TRUE;
+     }
 
     case WM_COMMAND:
-        if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
-        {
+        if ( LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL ) {
             EndDialog(hDlg, LOWORD(wParam));
+
+            return (INT_PTR)TRUE;
+        }
+        else {
+            GetClientRect( (HWND)lParam , &currentMonitor.size );
+            currentMonitor.size.left *= 10;
+            currentMonitor.size.top *= 10;
+            currentMonitor.size.right *= 10;
+            currentMonitor.size.bottom *= 10;
+
+            currentMonitor.activeButton = (HWND)lParam;
+        }
+
+        break;
+    }
+
+    return (INT_PTR)FALSE;
+}
+
+// Message handler for "About" box
+INT_PTR CALLBACK AboutCbk( HWND hDlg , UINT message , WPARAM wParam , LPARAM lParam ) {
+    UNREFERENCED_PARAMETER(lParam);
+    switch ( message ) {
+    case WM_INITDIALOG: {
+        return (INT_PTR)TRUE;
+    }
+
+    case WM_COMMAND: {
+        if ( LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL ) {
+            EndDialog( hDlg , LOWORD(wParam) );
             return (INT_PTR)TRUE;
         }
         break;
     }
+    }
+
     return (INT_PTR)FALSE;
 }
 
@@ -493,7 +499,7 @@ BOOL CALLBACK MonitorEnumProc(
     return TRUE;
 }
 
-BOOL CALLBACK StartStreamChildProc(
+BOOL CALLBACK StartStreamChildCbk(
     HWND hwndChild,
     LPARAM lParam
 ) {
@@ -509,7 +515,7 @@ BOOL CALLBACK StartStreamChildProc(
     return TRUE;
 }
 
-BOOL CALLBACK StopStreamChildProc(
+BOOL CALLBACK StopStreamChildCbk(
     HWND hwndChild,
     LPARAM lParam
 ) {

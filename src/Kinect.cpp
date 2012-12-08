@@ -91,7 +91,9 @@ Kinect::~Kinect() {
 
     std::free( m_quad );
     plist_free( m_plistRaw );
+    m_plistRaw = NULL;
     plist_free( m_plistProc );
+    m_plistProc = NULL;
 }
 
 void Kinect::startVideoStream() {
@@ -245,13 +247,13 @@ bool Kinect::saveDepth( const std::string& fileName ) const {
 
 void Kinect::setCalibImage( Processing::ProcColor colorWanted ) {
     if ( isVideoStreamRunning() ) {
-        char* fileName = (char*)std::malloc(16);
+        char* fileName = (char*)std::malloc(16); // TODO
 
         m_vidImageMutex.lock();
         std::memcpy( m_calibImages[colorWanted]->imageData , m_vidBuffer , ImageVars::width * ImageVars::height * 3 );
         m_vidImageMutex.unlock();
 
-        std::sprintf( fileName , "calib-%d.png" , colorWanted );
+        std::sprintf( fileName , "setCalib-%d.png" , colorWanted );
         saveVideo( fileName );
         std::free( fileName );
     }
@@ -276,16 +278,18 @@ void Kinect::calibrate() {
 
     std::free( m_quad );
     plist_free( m_plistRaw );
+    m_plistRaw = NULL;
     plist_free( m_plistProc );
+    m_plistProc = NULL;
 
     // If image was disabled, NULL is passed instead, so it's ignored
 
     /* Use the calibration images to locate a quadrilateral in the
      * image which represents the screen (returns 1 on failure)
      */
-    saveRGBimage(redCalib, (char *)"redCalib-rgb.data");
-    saveRGBimage(blueCalib, (char *)"blueCalib-rgb.data");
-    findScreenBox( blueCalib , greenCalib , redCalib , &m_quad );
+    //saveRGBimage(redCalib, (char *)"redCalib-rgb.data"); // TODO
+    //saveRGBimage(blueCalib, (char *)"blueCalib-rgb.data"); // TODO
+    findScreenBox( redCalib , greenCalib , blueCalib , &m_quad );
 
     // If no box was found, m_quad will be NULL
     m_foundScreen = (m_quad != NULL);
@@ -299,7 +303,7 @@ void Kinect::lookForCursors() {
         /* Create a list of points which represent potential locations
            of the pointer */
         IplImage* tempImage = RGBtoIplImage( reinterpret_cast<unsigned char*>(m_vidBuffer) , ImageVars::width , ImageVars::height );
-        findImageLocation( tempImage , &m_plistRaw , FLT_GREEN );
+        findImageLocation( tempImage , &m_plistRaw , FLT_RED );
         cvReleaseImage( &tempImage );
 
         m_vidImageMutex.unlock();
@@ -311,7 +315,10 @@ void Kinect::lookForCursors() {
             findScreenLocation( m_plistRaw , &m_plistProc , m_quad , GetSystemMetrics( SM_CXSCREEN ) , GetSystemMetrics( SM_CYSCREEN ) );
 
             if ( m_plistProc != NULL ) {
-                moveMouse( &m_input , m_plistProc->data.x , m_plistProc->data.y , MOUSEEVENTF_ABSOLUTE );
+                moveMouse( &m_input ,
+                        65535.f * m_plistProc->data.x / GetSystemMetrics( SM_CXSCREEN ) ,
+                        65535.f * m_plistProc->data.y / GetSystemMetrics( SM_CYSCREEN ) ,
+                        MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE );
             }
         }
     }
@@ -360,7 +367,7 @@ void Kinect::newVideoFrame( struct nstream_t* streamObject , void* classObject )
         cvLine( kinectPtr->m_cvVidImage , kinectPtr->m_quad->point[2] , kinectPtr->m_quad->point[3] , lineColor , 2 , 8 , 0 );
         cvLine( kinectPtr->m_cvVidImage , kinectPtr->m_quad->point[3] , kinectPtr->m_quad->point[0] , lineColor , 2 , 8 , 0 );
 
-        //kinectPtr->lookForCursors(); // FIXME
+        kinectPtr->lookForCursors(); // FIXME
     }
 
     // Perform conversion from RGBA to BGRA for use as image data in CreateBitmap
@@ -407,6 +414,17 @@ void Kinect::newDepthFrame( struct nstream_t* streamObject , void* classObject )
 
     // Make HBITMAP from pixel array
     kinectPtr->m_depthDisplayMutex.lock();
+
+    // B , G , R , A
+    CvScalar lineColor = cvScalar( 0x00 , 0xFF , 0x00 , 0xFF );
+
+    if ( kinectPtr->m_foundScreen ) {
+        // Draw lines to show user where the screen is
+        cvLine( kinectPtr->m_cvDepthImage , kinectPtr->m_quad->point[0] , kinectPtr->m_quad->point[1] , lineColor , 2 , 8 , 0 );
+        cvLine( kinectPtr->m_cvDepthImage , kinectPtr->m_quad->point[1] , kinectPtr->m_quad->point[2] , lineColor , 2 , 8 , 0 );
+        cvLine( kinectPtr->m_cvDepthImage , kinectPtr->m_quad->point[2] , kinectPtr->m_quad->point[3] , lineColor , 2 , 8 , 0 );
+        cvLine( kinectPtr->m_cvDepthImage , kinectPtr->m_quad->point[3] , kinectPtr->m_quad->point[0] , lineColor , 2 , 8 , 0 );
+    }
 
     DeleteObject( kinectPtr->m_depthImage ); // free previous image if there is one
     kinectPtr->m_depthImage = CreateBitmap( ImageVars::width , ImageVars::height , 1 , 32 , kinectPtr->m_cvDepthImage->imageData );

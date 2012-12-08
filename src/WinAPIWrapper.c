@@ -6,6 +6,7 @@
 //=============================================================================
 
 #include "WinAPIWrapper.h"
+#include <stdio.h> // TODO Remove me
 
 void moveMouse( INPUT* input , DWORD dx , DWORD dy , DWORD dwFlags ) {
 	ZeroMemory( input , sizeof(INPUT) );
@@ -18,7 +19,9 @@ void moveMouse( INPUT* input , DWORD dx , DWORD dy , DWORD dwFlags ) {
 	}
 	input->mi.dwFlags |= dwFlags;
 
-	SendInput( 1 , input , sizeof(INPUT) );
+	if ( !SendInput( 1 , input , sizeof(INPUT) ) ) {
+	    printf( "mouseMoveError: %d\n" , GetLastError() );
+	}
 }
 
 void leftClick( INPUT* input ) {

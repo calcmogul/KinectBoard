@@ -30,7 +30,7 @@ TestScreen::TestScreen( HINSTANCE instance , bool createNow ) :
             m_instance = GetModuleHandle( NULL );
         }
 
-        m_whiteBrush = CreateSolidBrush( RGB( 255 , 255 , 255 ) );
+        m_whiteBrush = CreateSolidBrush( RGB( 128 , 128 , 128 ) );
         m_colorBrush = CreateSolidBrush( RGB( 255 , 0 , 0 ) );
 
         ZeroMemory( &m_windowClass , sizeof(WNDCLASSEX) );
@@ -68,10 +68,10 @@ void TestScreen::create() {
                 m_windowClassName ,
                 "" ,
                 WS_POPUP | WS_VISIBLE ,
-                0 ,
-                0 ,
-                GetSystemMetrics(SM_CXSCREEN) ,
-                GetSystemMetrics(SM_CYSCREEN) ,
+                0 , //1366
+                0 , //-357
+                GetSystemMetrics(SM_CXSCREEN) , // 1280
+                GetSystemMetrics(SM_CYSCREEN) , // 1024
                 NULL ,
                 NULL ,
                 m_instance ,
@@ -177,8 +177,6 @@ LRESULT CALLBACK TestScreen::OnEvent( HWND Handle , UINT Message , WPARAM WParam
         FillRgn( windowHdc , rectRgn , m_whiteBrush );
         DeleteObject( rectRgn );
         /* ======================== */
-
-        DeleteObject( rectRgn );
 
         EndPaint( Handle , &ps );
 

@@ -248,7 +248,7 @@ imageFilter(IplImage *image, IplImage **product, int channel)
         tmp1 = cvCreateImage(cvGetSize(image), 8, 1);
 
         hsvimage = cvCreateImage(cvGetSize(image), 8, 3);
-        cvCvtColor(image, hsvimage, CV_BGR2HSV);
+        cvCvtColor(image, hsvimage, CV_RGB2HSV);
 
         switch(channel){
         case FLT_RED:
@@ -357,11 +357,7 @@ imageFilter(IplImage *image, IplImage **product, int channel)
 void
 saveRGBimage(IplImage *image, char *path)
 {
-    FILE *fp;
-
-    fp = fopen(path, "w+b");
-    fwrite(image->imageData, image->width*image->height*image->nChannels, 1, fp);
-    fclose(fp);
+    cvSaveImage( path , image , NULL );
 
     return;
 }
@@ -384,7 +380,6 @@ findScreenBox(
     IplImage *greenfilter;
     IplImage *bluefilter;
     IplImage *tmp0;
-    IplImage *tmp2;
 
     CvMemStorage *storage;
     CvContourScanner scanner;
@@ -417,17 +412,8 @@ findScreenBox(
         /* cvDilate(bluefilter, bluefilter, NULL, 2); */
     }
 
-    /* cvSaveImage("r-out.png", redfilter, NULL);
-    cvSaveImage("b-out.png", bluefilter, NULL); */
-    /*saveRGBimage(redfilter, "r-out.data");
-    saveRGBimage(bluefilter, "b-out.data");*/
-
-    tmp2 = cvCreateImage(size, 8, 3);
-    cvMerge(redfilter, redfilter, redfilter, NULL, tmp2);
-    saveRGBimage(tmp2, "r-rgb.data");
-    cvMerge(bluefilter, bluefilter, bluefilter, NULL, tmp2);
-    saveRGBimage(tmp2, "b-rgb.data");
-    cvReleaseImage(&tmp2);
+    cvSaveImage("r-out.png", redfilter, NULL);
+    cvSaveImage("b-out.png", bluefilter, NULL);
 
     /* and the three images together */
     memset(tmp0->imageData, 0xff, size.width*size.height);
@@ -438,8 +424,9 @@ findScreenBox(
     if(blueimage != NULL)
         cvAnd(tmp0, bluefilter, tmp0, NULL);
 
-    /* cvSaveImage("a-out.png", tmp0, NULL); */
-    /* saveRGBimage(tmp0, "a-out.data"); */
+    cvDilate( tmp0 , tmp0 , NULL , 2 );
+
+    cvSaveImage("a-out.png", tmp0, NULL);
 
     /* only the calibration quadrilateral should be in tmp0, now
        we need to find it's points */
@@ -775,8 +762,8 @@ RGBtoIplImage(uint8_t *rgbimage, int width, int height)
 
     size.width = width;
     size.height = height;
-    image = cvCreateImageHeader(size, 8, 3);
-    image->imageData = (char *)rgbimage;
+    image = cvCreateImage(size, 8, 3);
+    memcpy( image->imageData , rgbimage , width * height * 3 );
 
     return image;
 }
