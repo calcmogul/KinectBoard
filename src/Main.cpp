@@ -4,10 +4,6 @@
 //Author: Tyler Veness
 //=============================================================================
 
-/*
- * TODO Add support for multiple monitors
- */
-
 #define _WIN32_WINNT 0x0501
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -15,21 +11,20 @@
 #include <cstring>
 #include <list>
 #include <sstream>
-#include <iostream> // TODO Remove me
+#include <string>
 
 #include "Resource.h"
 
 #include "TestScreen.hpp"
 #include "Kinect.hpp"
 
-typedef struct CurrentMonitor {
-    // index of monitor in global list
-    unsigned int index;
-    HWND activeButton;
+typedef struct MonitorIndex {
+    // dimensions of monitor
+    RECT dim;
 
-    // size of monitor client area
-    RECT size;
-} monitorUsed;
+    // button used to represent this monitor
+    HWND activeButton;
+} monitorIndex;
 
 // Global because the drawing is set up to be continuous in CALLBACK OnEvent
 HINSTANCE hInst = NULL;
@@ -40,13 +35,16 @@ HICON kinectOFF = NULL;
 Kinect* projectorKinectPtr = NULL;
 
 // Used for choosing on which monitor to draw test image
-std::list<RECT*> gMonitors;
-CurrentMonitor currentMonitor;
+std::list<MonitorIndex*> gMonitors;
+MonitorIndex currentMonitor = { { 0 , 0 , GetSystemMetrics(SM_CXSCREEN) , GetSystemMetrics(SM_CYSCREEN) } , NULL };
+
+template <typename T>
+std::string numberToString( T number );
 
 LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LParam );
 
-INT_PTR CALLBACK AboutCbk( HWND hDlg , UINT message , WPARAM wParam , LPARAM lParam );
-INT_PTR CALLBACK MonitorCbk( HWND hDlg , UINT message , WPARAM wParam , LPARAM lParam );
+BOOL CALLBACK AboutCbk( HWND hDlg , UINT message , WPARAM wParam , LPARAM lParam );
+BOOL CALLBACK MonitorCbk( HWND hDlg , UINT message , WPARAM wParam , LPARAM lParam );
 
 BOOL CALLBACK MonitorEnumProc(
     HMONITOR hMonitor,
@@ -163,6 +161,17 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     return Message.wParam;
 }
 
+template <typename T>
+std::string numberToString( T number ) {
+    std::stringstream ss;
+    std::string str;
+
+    ss << number;
+    ss >> str;
+
+    return str;
+}
+
 LRESULT CALLBACK OnEvent( HWND handle , UINT message , WPARAM wParam , LPARAM lParam ) {
     switch ( message ) {
     case WM_CREATE: {
@@ -215,7 +224,8 @@ LRESULT CALLBACK OnEvent( HWND handle , UINT message , WPARAM wParam , LPARAM lP
                 if ( projectorKinectPtr != NULL ) {
                     // If there is no Kinect connected, don't bother trying to retrieve images
                     if ( projectorKinectPtr->isVideoStreamRunning() ) {
-                        TestScreen testWin( hInst , true );
+                        TestScreen testWin( hInst , false );
+                        testWin.create( currentMonitor.dim );
 
                         testWin.setColor( Processing::Red );
                         testWin.display();
@@ -263,36 +273,17 @@ LRESULT CALLBACK OnEvent( HWND handle , UINT message , WPARAM wParam , LPARAM lP
             }
 
             case IDM_CHANGE_MONITOR: {
-                EnumDisplayMonitors(
-                        NULL, // List all monitors
-                        NULL, // Don't clip area
-                        MonitorEnumProc,
-                        (LPARAM)&gMonitors // User data
-                );
-
                 DialogBox( hInst , MAKEINTRESOURCE(IDD_MONITORBOX) , handle , MonitorCbk );
-
-                unsigned short count = 0;
-                for ( std::list<RECT*>::iterator i = gMonitors.begin() ; i != gMonitors.end() ; i++ ) {
-                    std::cout << count << ": (" << (*i)->left << ", " << (*i)->top << ") -> (" << (*i)->right << ", " << (*i)->bottom << ")\n";
-                    delete *i;
-                    count++;
-                }
-                gMonitors.clear();
 
                 break;
             }
 
             case IDM_ABOUT: {
                 DialogBox( hInst , MAKEINTRESOURCE(IDD_ABOUTBOX) , handle , AboutCbk );
+
+                break;
             }
         }
-
-        break;
-    }
-
-    case WM_DISPLAYCHANGE: {
-
 
         break;
     }
@@ -388,103 +379,210 @@ LRESULT CALLBACK OnEvent( HWND handle , UINT message , WPARAM wParam , LPARAM lP
 }
 
 // Message handler for "Change Monitor" box
-INT_PTR CALLBACK MonitorCbk( HWND hDlg , UINT message , WPARAM wParam , LPARAM lParam ) {
+BOOL CALLBACK MonitorCbk( HWND hDlg , UINT message , WPARAM wParam , LPARAM lParam ) {
     switch ( message ) {
     case WM_INITDIALOG: {
-        for ( std::list<RECT*>::iterator i = gMonitors.begin() ; i != gMonitors.end() ; i++ ) {
-            CreateWindowEx( 0,
-                "BUTTON",
-                "",
-                WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-                (*i)->left / 10,
-                (*i)->top / 10,
-                ( (*i)->right - (*i)->left ) / 10,
-                ( (*i)->bottom - (*i)->top ) / 10,
-                hDlg,
-                reinterpret_cast<HMENU>( NULL ),
-                hInst,
-                NULL);
+        RECT windowSize;
+        GetClientRect( hDlg , &windowSize );
+
+        // Store button box's width and height
+        unsigned int boxWidth = windowSize.right - windowSize.left - 18;
+        unsigned int boxHeight = 82 - 9;
+
+        // All buttons are scaled to fit within this window
+        HWND buttonBox = CreateWindowEx( 0,
+            "STATIC",
+            "",
+            WS_VISIBLE | WS_CHILD,
+            9,
+            9,
+            boxWidth,
+            boxHeight,
+            hDlg,
+            reinterpret_cast<HMENU>( NULL ),
+            hInst,
+            NULL);
+
+        EnumDisplayMonitors(
+                NULL, // List all monitors
+                NULL, // Don't clip area
+                MonitorEnumProc,
+                (LPARAM)&gMonitors // User data
+        );
+
+        /* Find coordinates of box that will fit all current desktop monitors
+         * * Starts within 0 x 0 rectangle and expands it as necessary
+         * * Then creates buttons within based upon that rectangle and matches
+         *   them with their corresponding monitor
+         */
+        RECT desktopDims = { 0 , 0 , 0 , 0 };
+
+        for ( std::list<MonitorIndex*>::iterator i = gMonitors.begin() ; i != gMonitors.end() ; i++ ) {
+            if ( (*i)->dim.left < desktopDims.left ) {
+                desktopDims.left = (*i)->dim.left;
+            }
+
+            if ( (*i)->dim.right > desktopDims.right ) {
+                desktopDims.right = (*i)->dim.right;
+            }
+
+            if ( (*i)->dim.top < desktopDims.top ) {
+                desktopDims.top = (*i)->dim.top;
+            }
+
+            if ( (*i)->dim.bottom > desktopDims.bottom ) {
+                desktopDims.bottom = (*i)->dim.bottom;
+            }
         }
 
-        return (INT_PTR)TRUE;
+        // Store desktop width and height
+        unsigned int desktopWidth = desktopDims.right - desktopDims.left;
+        unsigned int desktopHeight = desktopDims.bottom - desktopDims.top;
+
+        // Create a button that will represent the monitor in this dialog
+        unsigned int winID = 110;
+        for ( std::list<MonitorIndex*>::iterator i = gMonitors.begin() ; i != gMonitors.end() ; i++ ) {
+            (*i)->activeButton = CreateWindowEx( 0,
+                "BUTTON",
+                (numberToString( (*i)->dim.right - (*i)->dim.left ) + " x " + numberToString( (*i)->dim.bottom - (*i)->dim.top )).c_str(),
+                WS_VISIBLE | WS_CHILD,
+                boxWidth * (*i)->dim.left / desktopWidth,
+                boxHeight * (*i)->dim.top / desktopHeight,
+                boxWidth * ( (*i)->dim.right - (*i)->dim.left ) / desktopWidth,
+                boxHeight * ( (*i)->dim.bottom - (*i)->dim.top ) / desktopHeight,
+                buttonBox,
+                reinterpret_cast<HMENU>( winID ),
+                hInst,
+                NULL);
+            winID++;
+        }
+
+        return TRUE;
     }
 
     case WM_DRAWITEM: {
-         LPDRAWITEMSTRUCT pDIS = (LPDRAWITEMSTRUCT)lParam;
+        LPDRAWITEMSTRUCT pDIS = (LPDRAWITEMSTRUCT)lParam;
 
-         POINT rectanglePts[4];
-         HRGN rectRgn;
+        POINT rectanglePts[4];
+        HRGN rectRgn;
 
-         rectanglePts[0] = { 0 , 0 };
-         rectanglePts[1] = { pDIS->rcItem.right , 0 };
-         rectanglePts[2] = { pDIS->rcItem.right , pDIS->rcItem.bottom };
-         rectanglePts[3] = { 0 , pDIS->rcItem.bottom };
+        rectanglePts[0] = { 0 , 0 };
+        rectanglePts[1] = { pDIS->rcItem.right , 0 };
+        rectanglePts[2] = { pDIS->rcItem.right , pDIS->rcItem.bottom };
+        rectanglePts[3] = { 0 , pDIS->rcItem.bottom };
 
-         rectRgn = CreatePolygonRgn( rectanglePts , 4 , ALTERNATE );
+        rectRgn = CreatePolygonRgn( rectanglePts , 4 , ALTERNATE );
 
-         // If button being drawn represents the active monitor
-         if ( currentMonitor.activeButton == pDIS->hwndItem ) {
-             HBRUSH blueBrush = CreateSolidBrush( RGB( 0 , 0 , 120 ) );
+        // If button being drawn represents the active monitor
+        if ( currentMonitor.activeButton == pDIS->hwndItem ) {
+            HBRUSH blueBrush = CreateSolidBrush( RGB( 0 , 0 , 120 ) );
 
-             // Draw blue background to window
-             FillRgn( pDIS->hDC , rectRgn , blueBrush );
+            // Draw blue background to window
+            FillRgn( pDIS->hDC , rectRgn , blueBrush );
 
-             DeleteObject( blueBrush );
-         }
-         else {
-             HBRUSH normalBrush = CreateSolidBrush( RGB( 70 , 70 , 70 ) );
-
-             // Draw normal background to window
-             FillRgn( pDIS->hDC , rectRgn , normalBrush );
-
-             DeleteObject( normalBrush );
-         }
-
-         DeleteObject( rectRgn );
-
-         return (INT_PTR)TRUE;
-     }
-
-    case WM_COMMAND:
-        if ( LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL ) {
-            EndDialog(hDlg, LOWORD(wParam));
-
-            return (INT_PTR)TRUE;
+            DeleteObject( blueBrush );
         }
         else {
-            GetClientRect( (HWND)lParam , &currentMonitor.size );
-            currentMonitor.size.left *= 10;
-            currentMonitor.size.top *= 10;
-            currentMonitor.size.right *= 10;
-            currentMonitor.size.bottom *= 10;
+            HBRUSH normalBrush = CreateSolidBrush( RGB( 70 , 70 , 70 ) );
 
-            currentMonitor.activeButton = (HWND)lParam;
+            // Draw normal background to window
+            FillRgn( pDIS->hDC , rectRgn , normalBrush );
+
+            DeleteObject( normalBrush );
+        }
+
+        DeleteObject( rectRgn );
+
+        return TRUE;
+    }
+
+    case WM_PARENTNOTIFY: {
+        if ( LOWORD(wParam) == WM_LBUTTONDOWN ) {
+            /* This message is only received when a button other than OK was
+             * pressed in the dialog window
+             */
+            // Get origin of dialog box's client area
+            RECT dialogWind;
+            GetWindowRect( hDlg , &dialogWind );
+
+            RECT dialogClient;
+            GetClientRect( hDlg , &dialogClient );
+
+            RECT buttonPos;
+
+            // Get thickness of window borders
+            GetClientRect( hDlg , &dialogClient );
+            GetWindowRect( hDlg , &dialogWind );
+            int borderThickness = ((dialogWind.right - dialogWind.left) - dialogClient.right)/2;
+            int totalVertThickness = (dialogWind.bottom - dialogWind.top) - dialogClient.bottom;
+
+            // Change where test pattern will be drawn if button was clicked on
+            for ( std::list<MonitorIndex*>::iterator i = gMonitors.begin() ; i != gMonitors.end() ; i++ ) {
+                GetWindowRect( (*i)->activeButton , &buttonPos );
+
+                // Align button with origin of dialog box
+                buttonPos.left = buttonPos.left - dialogWind.left - borderThickness;
+                buttonPos.right = buttonPos.right - dialogWind.left - borderThickness;
+                buttonPos.top = buttonPos.top - dialogWind.top - totalVertThickness + borderThickness;
+                buttonPos.bottom = buttonPos.bottom - dialogWind.top - totalVertThickness + borderThickness;
+
+                // If cursor is within boundaries of button
+                if ( LOWORD(lParam) > buttonPos.left && LOWORD(lParam) < buttonPos.right
+                        && HIWORD(lParam) > buttonPos.top && HIWORD(lParam) < buttonPos.bottom ) {
+                    currentMonitor = **i;
+                }
+            }
         }
 
         break;
     }
 
-    return (INT_PTR)FALSE;
+    case WM_COMMAND: {
+        if ( LOWORD(wParam) == IDOK ) {
+            for ( std::list<MonitorIndex*>::iterator i = gMonitors.begin() ; i != gMonitors.end() ; i++ ) {
+                DestroyWindow( (*i)->activeButton );
+                delete *i;
+            }
+            gMonitors.clear();
+
+            currentMonitor.activeButton = NULL;
+
+            EndDialog( hDlg , LOWORD(wParam) );
+
+            return TRUE;
+        }
+        else if ( LOWORD(wParam) == IDCANCEL ) {
+            EndDialog( hDlg , LOWORD(wParam) );
+
+            return TRUE;
+        }
+
+        break;
+    }
+    }
+
+    return FALSE;
 }
 
 // Message handler for "About" box
-INT_PTR CALLBACK AboutCbk( HWND hDlg , UINT message , WPARAM wParam , LPARAM lParam ) {
+BOOL CALLBACK AboutCbk( HWND hDlg , UINT message , WPARAM wParam , LPARAM lParam ) {
     UNREFERENCED_PARAMETER(lParam);
     switch ( message ) {
     case WM_INITDIALOG: {
-        return (INT_PTR)TRUE;
+        return TRUE;
     }
 
     case WM_COMMAND: {
         if ( LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL ) {
             EndDialog( hDlg , LOWORD(wParam) );
-            return (INT_PTR)TRUE;
+            return TRUE;
         }
+
         break;
     }
     }
 
-    return (INT_PTR)FALSE;
+    return FALSE;
 }
 
 BOOL CALLBACK MonitorEnumProc(
@@ -493,9 +591,9 @@ BOOL CALLBACK MonitorEnumProc(
     LPRECT lprcMonitor,
     LPARAM dwData
 ) {
-    std::list<RECT*>* monitors = (std::list<RECT*>*)dwData;
+    std::list<MonitorIndex*>* monitors = (std::list<MonitorIndex*>*)dwData;
 
-    monitors->push_back( new RECT( { lprcMonitor->left , lprcMonitor->top , lprcMonitor->right , lprcMonitor->bottom } ) );
+    monitors->push_back( new MonitorIndex( { { lprcMonitor->left , lprcMonitor->top , lprcMonitor->right , lprcMonitor->bottom } , NULL } ) );
 
     return TRUE;
 }

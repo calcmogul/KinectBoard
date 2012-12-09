@@ -26,7 +26,9 @@ public:
     virtual ~TestScreen();
 
     // Create HWND
-    void create();
+    void create( const RECT windowPos = { 0 , 0 , GetSystemMetrics(SM_CXSCREEN) , GetSystemMetrics(SM_CYSCREEN) } );
+
+    void setPosition( const RECT windowPos );
 
     void setColor( Processing::ProcColor borderColor );
 

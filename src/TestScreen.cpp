@@ -60,17 +60,17 @@ TestScreen::~TestScreen() {
     TestScreen::close();
 }
 
-void TestScreen::create() {
+void TestScreen::create( const RECT windowPos ) {
     // If window is closed
     if ( m_window == NULL ) {
         m_window = CreateWindowEx( 0 ,
                 m_windowClassName ,
                 "" ,
                 WS_POPUP | WS_VISIBLE ,
-                0 , //1366
-                0 , //-357
-                GetSystemMetrics(SM_CXSCREEN) , // 1280
-                GetSystemMetrics(SM_CYSCREEN) , // 1024
+                windowPos.left ,
+                windowPos.top ,
+                windowPos.right - windowPos.left ,
+                windowPos.bottom - windowPos.top ,
                 NULL ,
                 NULL ,
                 m_instance ,
@@ -81,6 +81,17 @@ void TestScreen::create() {
             m_prevCursor = SetCursor( NULL );
         }
     }
+}
+
+void TestScreen::setPosition( const RECT windowPos ) {
+    SetWindowPos( m_window ,
+            NULL ,
+            windowPos.left ,
+            windowPos.top ,
+            windowPos.right - windowPos.left ,
+            windowPos.bottom - windowPos.top ,
+            SWP_NOSIZE | SWP_NOZORDER
+            );
 }
 
 void TestScreen::setColor( ProcColor borderColor ) {

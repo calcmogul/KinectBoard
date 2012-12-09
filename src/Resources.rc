@@ -24,19 +24,19 @@ CAPTION "About KinectBoard"
 FONT 10, "MS Shell Dlg"
 BEGIN
     ICON             kinect1-ON,                     IDC_STATIC, 30, 8,  32,  32
-    LTEXT            "KinectBoard, Version 1.0a",    IDC_STATIC, 55, 12, 114, 10, SS_NOPREFIX
+    LTEXT            "KinectBoard, Version 1.0a",    IDC_STATIC, 55, 12, 114, 10
     LTEXT            "Copyright (c) 2012",           IDC_STATIC, 30, 30, 159, 10
     LTEXT            "Alan Fisher and Tyler Veness", IDC_STATIC, 30, 39, 96,  10
     LTEXT            "All Rights Reserved",          IDC_STATIC, 30, 48, 63,  10
 END
 
 ////////// Monitor Change Dialog
-IDD_MONITORBOX DIALOGEX (320 - 85) / 2 - 18, (240 - 31) / 2 - 22, 170, 62
+IDD_MONITORBOX DIALOGEX (320 - 85) / 2 - 18, (240 - 31) / 2 - 24, 170, 69
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Change Board Monitor"
 FONT 10, "MS Shell Dlg"
 BEGIN
-    DEFPUSHBUTTON   "OK", IDOK, 113, 41, 50, 14, WS_GROUP
+    DEFPUSHBUTTON   "OK", IDOK, 113, 48, 50, 14, WS_GROUP
 END
 
 ////////// Properties
