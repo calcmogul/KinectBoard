@@ -12,6 +12,7 @@
 #include <list>
 #include <sstream>
 #include <string>
+#include <iostream> // TODO Remove me
 
 #include "Resource.h"
 
@@ -440,21 +441,37 @@ BOOL CALLBACK MonitorCbk( HWND hDlg , UINT message , WPARAM wParam , LPARAM lPar
         unsigned int desktopHeight = desktopDims.bottom - desktopDims.top;
 
         // Create a button that will represent the monitor in this dialog
-        unsigned int winID = 110;
         for ( std::list<MonitorIndex*>::iterator i = gMonitors.begin() ; i != gMonitors.end() ; i++ ) {
-            (*i)->activeButton = CreateWindowEx( 0,
-                "BUTTON",
-                (numberToString( (*i)->dim.right - (*i)->dim.left ) + " x " + numberToString( (*i)->dim.bottom - (*i)->dim.top )).c_str(),
-                WS_VISIBLE | WS_CHILD,
-                boxWidth * (*i)->dim.left / desktopWidth,
-                boxHeight * (*i)->dim.top / desktopHeight,
-                boxWidth * ( (*i)->dim.right - (*i)->dim.left ) / desktopWidth,
-                boxHeight * ( (*i)->dim.bottom - (*i)->dim.top ) / desktopHeight,
-                buttonBox,
-                reinterpret_cast<HMENU>( winID ),
-                hInst,
-                NULL);
-            winID++;
+            if ( currentMonitor.dim.left == (*i)->dim.left && currentMonitor.dim.right == (*i)->dim.right &&
+                    currentMonitor.dim.top == (*i)->dim.top && currentMonitor.dim.bottom == (*i)->dim.bottom ) {
+                (*i)->activeButton = CreateWindowEx( 0,
+                    "BUTTON",
+                    ("*" + numberToString( (*i)->dim.right - (*i)->dim.left ) + " x " + numberToString( (*i)->dim.bottom - (*i)->dim.top )).c_str(),
+                    WS_VISIBLE | WS_CHILD,
+                    boxWidth * ( (*i)->dim.left - desktopDims.left ) / desktopWidth,
+                    boxHeight * ( (*i)->dim.top - desktopDims.top ) / desktopHeight,
+                    boxWidth * ( (*i)->dim.right - (*i)->dim.left ) / desktopWidth,
+                    boxHeight * ( (*i)->dim.bottom - (*i)->dim.top ) / desktopHeight,
+                    buttonBox,
+                    reinterpret_cast<HMENU>( NULL ),
+                    hInst,
+                    NULL);
+                currentMonitor = **i;
+            }
+            else {
+                (*i)->activeButton = CreateWindowEx( 0,
+                    "BUTTON",
+                    (numberToString( (*i)->dim.right - (*i)->dim.left ) + " x " + numberToString( (*i)->dim.bottom - (*i)->dim.top )).c_str(),
+                    WS_VISIBLE | WS_CHILD,
+                    boxWidth * ( (*i)->dim.left - desktopDims.left ) / desktopWidth,
+                    boxHeight * ( (*i)->dim.top - desktopDims.top ) / desktopHeight,
+                    boxWidth * ( (*i)->dim.right - (*i)->dim.left ) / desktopWidth,
+                    boxHeight * ( (*i)->dim.bottom - (*i)->dim.top ) / desktopHeight,
+                    buttonBox,
+                    reinterpret_cast<HMENU>( NULL ),
+                    hInst,
+                    NULL);
+            }
         }
 
         return TRUE;
@@ -501,35 +518,31 @@ BOOL CALLBACK MonitorCbk( HWND hDlg , UINT message , WPARAM wParam , LPARAM lPar
             /* This message is only received when a button other than OK was
              * pressed in the dialog window
              */
-            // Get origin of dialog box's client area
-            RECT dialogWind;
-            GetWindowRect( hDlg , &dialogWind );
 
-            RECT dialogClient;
-            GetClientRect( hDlg , &dialogClient );
+            /* Convert cursor coordinates from dialog to desktop,
+             * since the button's position is also in desktop coordinates
+             */
+            POINT cursorPos = { LOWORD(lParam) , HIWORD(lParam) };
+            MapWindowPoints( hDlg , NULL , &cursorPos , 1 );
 
             RECT buttonPos;
-
-            // Get thickness of window borders
-            GetClientRect( hDlg , &dialogClient );
-            GetWindowRect( hDlg , &dialogWind );
-            int borderThickness = ((dialogWind.right - dialogWind.left) - dialogClient.right)/2;
-            int totalVertThickness = (dialogWind.bottom - dialogWind.top) - dialogClient.bottom;
 
             // Change where test pattern will be drawn if button was clicked on
             for ( std::list<MonitorIndex*>::iterator i = gMonitors.begin() ; i != gMonitors.end() ; i++ ) {
                 GetWindowRect( (*i)->activeButton , &buttonPos );
 
-                // Align button with origin of dialog box
-                buttonPos.left = buttonPos.left - dialogWind.left - borderThickness;
-                buttonPos.right = buttonPos.right - dialogWind.left - borderThickness;
-                buttonPos.top = buttonPos.top - dialogWind.top - totalVertThickness + borderThickness;
-                buttonPos.bottom = buttonPos.bottom - dialogWind.top - totalVertThickness + borderThickness;
-
                 // If cursor is within boundaries of button
-                if ( LOWORD(lParam) > buttonPos.left && LOWORD(lParam) < buttonPos.right
-                        && HIWORD(lParam) > buttonPos.top && HIWORD(lParam) < buttonPos.bottom ) {
+                if ( cursorPos.x > buttonPos.left && cursorPos.x < buttonPos.right
+                        && cursorPos.y > buttonPos.top && cursorPos.y < buttonPos.bottom ) {
+                    // Remove asterisk from previous button's text
+                    SetWindowText( currentMonitor.activeButton ,
+                            (numberToString( currentMonitor.dim.right - currentMonitor.dim.left ) + " x " + numberToString( currentMonitor.dim.bottom - currentMonitor.dim.top )).c_str() );
+
                     currentMonitor = **i;
+
+                    // Add asterisk to new button's text
+                    SetWindowText( currentMonitor.activeButton ,
+                            ("*" + numberToString( currentMonitor.dim.right - currentMonitor.dim.left ) + " x " + numberToString( currentMonitor.dim.bottom - currentMonitor.dim.top )).c_str() );
                 }
             }
         }

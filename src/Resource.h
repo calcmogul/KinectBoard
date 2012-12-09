@@ -19,6 +19,4 @@
 #define IDM_CHANGE_MONITOR        105
 #define IDM_ABOUT                 106
 
-// IDs 110 - 120 are reserved for monitor change buttons
-
 #endif // RESOURCE_H
