@@ -52,7 +52,7 @@ public :
     ////////////////////////////////////////////////////////////
     /// \brief Default constructor
     ///
-    /// \param value Optional value to initalize the variable
+    /// \param value Optional value to initialize the variable
     ///
     ////////////////////////////////////////////////////////////
     ThreadLocalPtr(T* value = NULL);
@@ -80,7 +80,7 @@ public :
     T* operator ->() const;
 
     ////////////////////////////////////////////////////////////
-    /// \brief Cast operator to implicitely convert the
+    /// \brief Cast operator to implicitly convert the
     ///        pointer to its raw pointer type (T*)
     ///
     /// \return Pointer to the actual object

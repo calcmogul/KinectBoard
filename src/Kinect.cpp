@@ -247,15 +247,9 @@ bool Kinect::saveDepth( const std::string& fileName ) const {
 
 void Kinect::setCalibImage( Processing::ProcColor colorWanted ) {
     if ( isVideoStreamRunning() ) {
-        char* fileName = (char*)std::malloc(16); // TODO
-
         m_vidImageMutex.lock();
         std::memcpy( m_calibImages[colorWanted]->imageData , m_vidBuffer , ImageVars::width * ImageVars::height * 3 );
         m_vidImageMutex.unlock();
-
-        std::sprintf( fileName , "setCalib-%d.png" , colorWanted );
-        saveVideo( fileName );
-        std::free( fileName );
     }
 }
 
@@ -287,8 +281,8 @@ void Kinect::calibrate() {
     /* Use the calibration images to locate a quadrilateral in the
      * image which represents the screen (returns 1 on failure)
      */
-    //saveRGBimage(redCalib, (char *)"redCalib-rgb.data"); // TODO
-    //saveRGBimage(blueCalib, (char *)"blueCalib-rgb.data"); // TODO
+    //saveRGBimage(redCalib, (char *)"redCalib-start.data"); // TODO
+    //saveRGBimage(blueCalib, (char *)"blueCalib-start.data"); // TODO
     findScreenBox( redCalib , greenCalib , blueCalib , &m_quad );
 
     // If no box was found, m_quad will be NULL

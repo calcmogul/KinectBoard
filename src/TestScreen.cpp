@@ -6,7 +6,6 @@
 
 #include "TestScreen.hpp"
 #include "ImageVars.hpp"
-#include <iostream> // TODO Remove me
 
 const char* TestScreen::m_windowClassName = "TestScreen";
 

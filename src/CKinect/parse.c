@@ -396,24 +396,23 @@ findScreenBox(
     size.height = redimage->height;
 
     tmp0 = cvCreateImage(size, 8, 1);
-    /* tmp1 = cvCreateImage(size, 8, 1); */
 
     /* filter the images */
     if(redimage != NULL){
         imageFilter(redimage, &redfilter, FLT_RED);
         /* cvDilate(redfilter, redfilter, NULL, 2); */
+        cvSaveImage( "redCalib-out.png", redfilter, NULL ); // TODO
     }
     if(greenimage != NULL){
         imageFilter(greenimage, &greenfilter, FLT_GREEN);
         /* cvDilate(greenfilter, greenfilter, NULL, 2); */
+        cvSaveImage( "greenCalib-out.png", greenfilter, NULL ); // TODO
     }
     if(blueimage != NULL){
         imageFilter(blueimage, &bluefilter, FLT_BLUE);
         /* cvDilate(bluefilter, bluefilter, NULL, 2); */
+        cvSaveImage( "blueCalib-out.png", bluefilter, NULL ); // TODO
     }
-
-    cvSaveImage("r-out.png", redfilter, NULL);
-    cvSaveImage("b-out.png", bluefilter, NULL);
 
     /* and the three images together */
     memset(tmp0->imageData, 0xff, size.width*size.height);
@@ -426,7 +425,7 @@ findScreenBox(
 
     cvDilate( tmp0 , tmp0 , NULL , 2 );
 
-    cvSaveImage("a-out.png", tmp0, NULL);
+    cvSaveImage("calibCombined-out.png", tmp0, NULL); // TODO
 
     /* only the calibration quadrilateral should be in tmp0, now
        we need to find it's points */

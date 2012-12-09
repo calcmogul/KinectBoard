@@ -14,6 +14,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <list>
+#include <sstream>
 #include <iostream> // TODO Remove me
 
 #include "Resource.h"
