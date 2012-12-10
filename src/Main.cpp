@@ -12,7 +12,6 @@
 #include <list>
 #include <sstream>
 #include <string>
-#include <iostream> // TODO Remove me
 
 #include "Resource.h"
 
@@ -29,11 +28,11 @@ typedef struct MonitorIndex {
 
 // Global because the drawing is set up to be continuous in CALLBACK OnEvent
 HINSTANCE hInst = NULL;
-HWND videoWindow = NULL;
-HWND depthWindow = NULL;
-HICON kinectON = NULL;
-HICON kinectOFF = NULL;
-Kinect* projectorKinectPtr = NULL;
+HWND gVideoWindow = NULL;
+HWND gDepthWindow = NULL;
+HICON gKinectON = NULL;
+HICON gKinectOFF = NULL;
+Kinect* gProjectorKinectPtr = NULL;
 
 // Used for choosing on which monitor to draw test image
 std::list<MonitorIndex*> gMonitors;
@@ -69,8 +68,8 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
 
     const char* mainClassName = "KinectBoard";
 
-    kinectON = LoadIcon( Instance , "kinect1-ON" );
-    kinectOFF = LoadIcon( Instance , "kinect2-OFF" );
+    gKinectON = LoadIcon( Instance , "kinect1-ON" );
+    gKinectOFF = LoadIcon( Instance , "kinect2-OFF" );
 
     HBRUSH mainBrush = CreateSolidBrush( RGB( 0 , 0 , 0 ) );
     HMENU mainMenu = LoadMenu( Instance , "mainMenu" );
@@ -84,12 +83,12 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     WindowClass.cbClsExtra    = 0;
     WindowClass.cbWndExtra    = 0;
     WindowClass.hInstance     = Instance;
-    WindowClass.hIcon         = kinectOFF;
+    WindowClass.hIcon         = gKinectOFF;
     WindowClass.hCursor       = NULL;
     WindowClass.hbrBackground = mainBrush;
     WindowClass.lpszMenuName  = "mainMenu";
     WindowClass.lpszClassName = mainClassName;
-    WindowClass.hIconSm       = kinectOFF;
+    WindowClass.hIconSm       = gKinectOFF;
     RegisterClassEx(&WindowClass);
 
     MSG Message;
@@ -102,7 +101,7 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
             TRUE ); // window has menu
 
     // Create a new window to be used for the lifetime of the application
-    videoWindow = CreateWindowEx( 0 ,
+    gVideoWindow = CreateWindowEx( 0 ,
             mainClassName ,
             "KinectBoard - Video" ,
             WS_SYSMENU | WS_CAPTION | WS_VISIBLE | WS_MINIMIZEBOX | WS_CLIPCHILDREN ,
@@ -115,7 +114,7 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
             Instance ,
             NULL );
 
-    depthWindow = CreateWindowEx( 0 ,
+    gDepthWindow = CreateWindowEx( 0 ,
             mainClassName ,
             "KinectBoard - Depth" ,
             WS_SYSMENU | WS_CAPTION | WS_VISIBLE | WS_MINIMIZEBOX | WS_CLIPCHILDREN ,
@@ -128,23 +127,23 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
             Instance ,
             NULL );
 
-    ShowWindow( depthWindow , SW_MINIMIZE );
+    ShowWindow( gDepthWindow , SW_MINIMIZE );
     /* ======================================= */
 
     Kinect projectorKinect;
-    projectorKinectPtr = &projectorKinect;
+    gProjectorKinectPtr = &projectorKinect;
 
     // Make windows receive stream events from Kinect instance
-    projectorKinect.registerVideoWindow( videoWindow );
-    projectorKinect.registerDepthWindow( depthWindow );
+    projectorKinect.registerVideoWindow( gVideoWindow );
+    projectorKinect.registerDepthWindow( gDepthWindow );
 
     projectorKinect.startVideoStream();
-    //projectorKinect.startDepthStream();
+    projectorKinect.startDepthStream();
     projectorKinect.enableColor( Processing::Red );
     projectorKinect.enableColor( Processing::Blue );
 
     // Calibrate Kinect
-    //SendMessage( videoWindow , WM_COMMAND , IDC_RECALIBRATE_BUTTON , 0 );
+    SendMessage( gVideoWindow , WM_COMMAND , IDC_RECALIBRATE_BUTTON , 0 );
 
     while ( GetMessage( &Message , NULL , 0 , 0 ) > 0 ) {
         // If a message was waiting in the message queue, process it
@@ -152,8 +151,8 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
         DispatchMessage( &Message );
     }
 
-    DestroyIcon( kinectON );
-    DestroyIcon( kinectOFF );
+    DestroyIcon( gKinectON );
+    DestroyIcon( gKinectOFF );
 
     UnregisterClass( mainClassName , Instance );
     UnregisterClass( "monitorButton" , Instance );
@@ -217,14 +216,13 @@ LRESULT CALLBACK OnEvent( HWND handle , UINT message , WPARAM wParam , LPARAM lP
     }
 
     case WM_COMMAND: {
-        int wmId    = LOWORD( wParam );
-        //int wmEvent = HIWORD( wParam );
+        int wmId = LOWORD( wParam );
 
         switch( wmId ) {
             case IDC_RECALIBRATE_BUTTON: {
-                if ( projectorKinectPtr != NULL ) {
+                if ( gProjectorKinectPtr != NULL ) {
                     // If there is no Kinect connected, don't bother trying to retrieve images
-                    if ( projectorKinectPtr->isVideoStreamRunning() ) {
+                    if ( gProjectorKinectPtr->isVideoStreamRunning() ) {
                         TestScreen testWin( hInst , false );
                         testWin.create( currentMonitor.dim );
 
@@ -232,15 +230,15 @@ LRESULT CALLBACK OnEvent( HWND handle , UINT message , WPARAM wParam , LPARAM lP
                         testWin.display();
                         // Give Kinect time to get image w/ test pattern in it
                         Sleep( 750 );
-                        projectorKinectPtr->setCalibImage( Processing::Red );
+                        gProjectorKinectPtr->setCalibImage( Processing::Red );
 
                         testWin.setColor( Processing::Blue );
                         testWin.display();
                         // Give Kinect time to get image w/ test pattern in it
                         Sleep( 750 );
-                        projectorKinectPtr->setCalibImage( Processing::Blue );
+                        gProjectorKinectPtr->setCalibImage( Processing::Blue );
 
-                        projectorKinectPtr->calibrate();
+                        gProjectorKinectPtr->calibrate();
                     }
                 }
 
@@ -248,24 +246,24 @@ LRESULT CALLBACK OnEvent( HWND handle , UINT message , WPARAM wParam , LPARAM lP
             }
 
             case IDC_STREAM_TOGGLE_BUTTON: {
-                if ( projectorKinectPtr != NULL ) {
+                if ( gProjectorKinectPtr != NULL ) {
                     // If button was pressed from video display window
-                    if ( handle == videoWindow ) {
-                        if ( projectorKinectPtr->isVideoStreamRunning() ) {
-                            projectorKinectPtr->stopVideoStream();
+                    if ( handle == gVideoWindow ) {
+                        if ( gProjectorKinectPtr->isVideoStreamRunning() ) {
+                            gProjectorKinectPtr->stopVideoStream();
                         }
                         else {
-                            projectorKinectPtr->startVideoStream();
+                            gProjectorKinectPtr->startVideoStream();
                         }
                     }
 
                     // If button was pressed from depth image display window
-                    else if ( handle == depthWindow ) {
-                        if ( projectorKinectPtr->isDepthStreamRunning() ) {
-                            projectorKinectPtr->stopDepthStream();
+                    else if ( handle == gDepthWindow ) {
+                        if ( gProjectorKinectPtr->isDepthStreamRunning() ) {
+                            gProjectorKinectPtr->stopDepthStream();
                         }
                         else {
-                            projectorKinectPtr->startDepthStream();
+                            gProjectorKinectPtr->startDepthStream();
                         }
                     }
                 }
@@ -296,13 +294,13 @@ LRESULT CALLBACK OnEvent( HWND handle , UINT message , WPARAM wParam , LPARAM lP
         hdc = BeginPaint( handle , &ps );
 
         // If we're painting the video display window
-        if ( handle == videoWindow ) {
-            projectorKinectPtr->displayVideo( videoWindow , 0 , 0 , hdc );
+        if ( handle == gVideoWindow ) {
+            gProjectorKinectPtr->displayVideo( gVideoWindow , 0 , 0 , hdc );
         }
 
         // If we're painting the depth image display window
-        else if ( handle == depthWindow ) {
-            projectorKinectPtr->displayDepth( depthWindow , 0 , 0 , hdc );
+        else if ( handle == gDepthWindow ) {
+            gProjectorKinectPtr->displayDepth( gDepthWindow , 0 , 0 , hdc );
         }
 
         EndPaint( handle , &ps );
@@ -312,7 +310,7 @@ LRESULT CALLBACK OnEvent( HWND handle , UINT message , WPARAM wParam , LPARAM lP
 
     case WM_DESTROY: {
         // If a display window is being closed, exit the application
-        if ( handle == videoWindow || handle == depthWindow ) {
+        if ( handle == gVideoWindow || handle == gDepthWindow ) {
             PostQuitMessage( 0 );
         }
 
@@ -321,8 +319,8 @@ LRESULT CALLBACK OnEvent( HWND handle , UINT message , WPARAM wParam , LPARAM lP
 
     case WM_KINECT_VIDEOSTART: {
         // Change video window icon to green because the stream started
-        PostMessage( handle , WM_SETICON , ICON_SMALL , (LPARAM)kinectON );
-        PostMessage( handle , WM_SETICON , ICON_BIG , (LPARAM)kinectON );
+        PostMessage( handle , WM_SETICON , ICON_SMALL , (LPARAM)gKinectON );
+        PostMessage( handle , WM_SETICON , ICON_BIG , (LPARAM)gKinectON );
 
         // Change Start/Stop button text to "Stop"
         char* windowText = (char*)std::malloc( 16 );
@@ -334,8 +332,8 @@ LRESULT CALLBACK OnEvent( HWND handle , UINT message , WPARAM wParam , LPARAM lP
 
     case WM_KINECT_VIDEOSTOP: {
         // Change video window icon to red because the stream stopped
-        PostMessage( handle , WM_SETICON , ICON_SMALL , (LPARAM)kinectOFF );
-        PostMessage( handle , WM_SETICON , ICON_BIG , (LPARAM)kinectOFF );
+        PostMessage( handle , WM_SETICON , ICON_SMALL , (LPARAM)gKinectOFF );
+        PostMessage( handle , WM_SETICON , ICON_BIG , (LPARAM)gKinectOFF );
 
         // Change Start/Stop button text to "Start"
         char* windowText = (char*)std::malloc( 16 );
@@ -347,8 +345,8 @@ LRESULT CALLBACK OnEvent( HWND handle , UINT message , WPARAM wParam , LPARAM lP
 
     case WM_KINECT_DEPTHSTART: {
         // Change depth window icon to green because the stream started
-        PostMessage( handle , WM_SETICON , ICON_SMALL , (LPARAM)kinectON );
-        PostMessage( handle , WM_SETICON , ICON_BIG , (LPARAM)kinectON );
+        PostMessage( handle , WM_SETICON , ICON_SMALL , (LPARAM)gKinectON );
+        PostMessage( handle , WM_SETICON , ICON_BIG , (LPARAM)gKinectON );
 
         // Change Start/Stop button text to "Stop"
         char* windowText = (char*)std::malloc( 16 );
@@ -360,8 +358,8 @@ LRESULT CALLBACK OnEvent( HWND handle , UINT message , WPARAM wParam , LPARAM lP
 
     case WM_KINECT_DEPTHSTOP: {
         // Change depth window icon to red because the stream stopped
-        PostMessage( handle , WM_SETICON , ICON_SMALL , (LPARAM)kinectOFF );
-        PostMessage( handle , WM_SETICON , ICON_BIG , (LPARAM)kinectOFF );
+        PostMessage( handle , WM_SETICON , ICON_SMALL , (LPARAM)gKinectOFF );
+        PostMessage( handle , WM_SETICON , ICON_BIG , (LPARAM)gKinectOFF );
 
         // Change Start/Stop button text to "Start"
         char* windowText = (char*)std::malloc( 16 );
@@ -440,75 +438,39 @@ BOOL CALLBACK MonitorCbk( HWND hDlg , UINT message , WPARAM wParam , LPARAM lPar
         unsigned int desktopWidth = desktopDims.right - desktopDims.left;
         unsigned int desktopHeight = desktopDims.bottom - desktopDims.top;
 
+        char* buttonText = reinterpret_cast<char*>( std::malloc( 2 ) );
+        bool isButtonClicked = false;
         // Create a button that will represent the monitor in this dialog
         for ( std::list<MonitorIndex*>::iterator i = gMonitors.begin() ; i != gMonitors.end() ; i++ ) {
-            if ( currentMonitor.dim.left == (*i)->dim.left && currentMonitor.dim.right == (*i)->dim.right &&
-                    currentMonitor.dim.top == (*i)->dim.top && currentMonitor.dim.bottom == (*i)->dim.bottom ) {
-                (*i)->activeButton = CreateWindowEx( 0,
-                    "BUTTON",
-                    ("*" + numberToString( (*i)->dim.right - (*i)->dim.left ) + " x " + numberToString( (*i)->dim.bottom - (*i)->dim.top )).c_str(),
-                    WS_VISIBLE | WS_CHILD,
-                    boxWidth * ( (*i)->dim.left - desktopDims.left ) / desktopWidth,
-                    boxHeight * ( (*i)->dim.top - desktopDims.top ) / desktopHeight,
-                    boxWidth * ( (*i)->dim.right - (*i)->dim.left ) / desktopWidth,
-                    boxHeight * ( (*i)->dim.bottom - (*i)->dim.top ) / desktopHeight,
-                    buttonBox,
-                    reinterpret_cast<HMENU>( NULL ),
-                    hInst,
-                    NULL);
-                currentMonitor = **i;
+            isButtonClicked = currentMonitor.dim.left == (*i)->dim.left && currentMonitor.dim.right == (*i)->dim.right &&
+                    currentMonitor.dim.top == (*i)->dim.top && currentMonitor.dim.bottom == (*i)->dim.bottom;
+
+            if ( isButtonClicked ) {
+                std::strcpy( buttonText , "*" );
             }
             else {
-                (*i)->activeButton = CreateWindowEx( 0,
-                    "BUTTON",
-                    (numberToString( (*i)->dim.right - (*i)->dim.left ) + " x " + numberToString( (*i)->dim.bottom - (*i)->dim.top )).c_str(),
-                    WS_VISIBLE | WS_CHILD,
-                    boxWidth * ( (*i)->dim.left - desktopDims.left ) / desktopWidth,
-                    boxHeight * ( (*i)->dim.top - desktopDims.top ) / desktopHeight,
-                    boxWidth * ( (*i)->dim.right - (*i)->dim.left ) / desktopWidth,
-                    boxHeight * ( (*i)->dim.bottom - (*i)->dim.top ) / desktopHeight,
-                    buttonBox,
-                    reinterpret_cast<HMENU>( NULL ),
-                    hInst,
-                    NULL);
+                std::strcpy( buttonText , " " );
+            }
+
+            (*i)->activeButton = CreateWindowEx( 0,
+                "BUTTON",
+                (buttonText + numberToString( (*i)->dim.right - (*i)->dim.left ) + " x " + numberToString( (*i)->dim.bottom - (*i)->dim.top ) + " ").c_str(),
+                WS_VISIBLE | WS_CHILD,
+                boxWidth * ( (*i)->dim.left - desktopDims.left ) / desktopWidth,
+                boxHeight * ( (*i)->dim.top - desktopDims.top ) / desktopHeight,
+                boxWidth * ( (*i)->dim.right - (*i)->dim.left ) / desktopWidth,
+                boxHeight * ( (*i)->dim.bottom - (*i)->dim.top ) / desktopHeight,
+                buttonBox,
+                reinterpret_cast<HMENU>( NULL ),
+                hInst,
+                NULL);
+
+            if ( isButtonClicked ) {
+                currentMonitor = **i;
             }
         }
 
-        return TRUE;
-    }
-
-    case WM_DRAWITEM: {
-        LPDRAWITEMSTRUCT pDIS = (LPDRAWITEMSTRUCT)lParam;
-
-        POINT rectanglePts[4];
-        HRGN rectRgn;
-
-        rectanglePts[0] = { 0 , 0 };
-        rectanglePts[1] = { pDIS->rcItem.right , 0 };
-        rectanglePts[2] = { pDIS->rcItem.right , pDIS->rcItem.bottom };
-        rectanglePts[3] = { 0 , pDIS->rcItem.bottom };
-
-        rectRgn = CreatePolygonRgn( rectanglePts , 4 , ALTERNATE );
-
-        // If button being drawn represents the active monitor
-        if ( currentMonitor.activeButton == pDIS->hwndItem ) {
-            HBRUSH blueBrush = CreateSolidBrush( RGB( 0 , 0 , 120 ) );
-
-            // Draw blue background to window
-            FillRgn( pDIS->hDC , rectRgn , blueBrush );
-
-            DeleteObject( blueBrush );
-        }
-        else {
-            HBRUSH normalBrush = CreateSolidBrush( RGB( 70 , 70 , 70 ) );
-
-            // Draw normal background to window
-            FillRgn( pDIS->hDC , rectRgn , normalBrush );
-
-            DeleteObject( normalBrush );
-        }
-
-        DeleteObject( rectRgn );
+        std::free( buttonText );
 
         return TRUE;
     }
@@ -536,13 +498,14 @@ BOOL CALLBACK MonitorCbk( HWND hDlg , UINT message , WPARAM wParam , LPARAM lPar
                         && cursorPos.y > buttonPos.top && cursorPos.y < buttonPos.bottom ) {
                     // Remove asterisk from previous button's text
                     SetWindowText( currentMonitor.activeButton ,
-                            (numberToString( currentMonitor.dim.right - currentMonitor.dim.left ) + " x " + numberToString( currentMonitor.dim.bottom - currentMonitor.dim.top )).c_str() );
+                            (numberToString( currentMonitor.dim.right - currentMonitor.dim.left ) + " x " + numberToString( currentMonitor.dim.bottom - currentMonitor.dim.top ) + " ").c_str() );
 
+                    // Set new selected button
                     currentMonitor = **i;
 
                     // Add asterisk to new button's text
                     SetWindowText( currentMonitor.activeButton ,
-                            ("*" + numberToString( currentMonitor.dim.right - currentMonitor.dim.left ) + " x " + numberToString( currentMonitor.dim.bottom - currentMonitor.dim.top )).c_str() );
+                            ("*" + numberToString( currentMonitor.dim.right - currentMonitor.dim.left ) + " x " + numberToString( currentMonitor.dim.bottom - currentMonitor.dim.top ) + " ").c_str() );
                 }
             }
         }
@@ -561,20 +524,26 @@ BOOL CALLBACK MonitorCbk( HWND hDlg , UINT message , WPARAM wParam , LPARAM lPar
             currentMonitor.activeButton = NULL;
 
             EndDialog( hDlg , LOWORD(wParam) );
-
-            return TRUE;
         }
         else if ( LOWORD(wParam) == IDCANCEL ) {
             EndDialog( hDlg , LOWORD(wParam) );
-
-            return TRUE;
         }
 
         break;
     }
+
+    case WM_CLOSE: {
+        EndDialog( hDlg , 0 );
+
+        break;
     }
 
-    return FALSE;
+    default: {
+        return FALSE;
+    }
+    }
+
+    return TRUE;
 }
 
 // Message handler for "About" box

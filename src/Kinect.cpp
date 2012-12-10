@@ -361,7 +361,7 @@ void Kinect::newVideoFrame( struct nstream_t* streamObject , void* classObject )
         cvLine( kinectPtr->m_cvVidImage , kinectPtr->m_quad->point[2] , kinectPtr->m_quad->point[3] , lineColor , 2 , 8 , 0 );
         cvLine( kinectPtr->m_cvVidImage , kinectPtr->m_quad->point[3] , kinectPtr->m_quad->point[0] , lineColor , 2 , 8 , 0 );
 
-        kinectPtr->lookForCursors(); // FIXME
+        kinectPtr->lookForCursors();
     }
 
     // Perform conversion from RGBA to BGRA for use as image data in CreateBitmap
