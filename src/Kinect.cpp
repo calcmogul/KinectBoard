@@ -306,12 +306,12 @@ void Kinect::lookForCursors() {
            the boundary defined by m_quad, and scale them to the size
            of the computer's main screen. */
         if ( m_plistRaw != NULL ) {
-            findScreenLocation( m_plistRaw , &m_plistProc , m_quad , GetSystemMetrics( SM_CXSCREEN ) , GetSystemMetrics( SM_CYSCREEN ) );
+            findScreenLocation( m_plistRaw , &m_plistProc , m_quad , m_screenRect.right - m_screenRect.left , m_screenRect.bottom - m_screenRect.top );
 
             if ( m_plistProc != NULL ) {
                 moveMouse( &m_input ,
-                        65535.f * m_plistProc->data.x / GetSystemMetrics( SM_CXSCREEN ) ,
-                        65535.f * m_plistProc->data.y / GetSystemMetrics( SM_CYSCREEN ) ,
+                        65535.f * ( m_screenRect.left + m_plistProc->data.x ) / ( m_screenRect.right - m_screenRect.left ) ,
+                        65535.f * ( m_screenRect.top + m_plistProc->data.y ) / ( m_screenRect.bottom - m_screenRect.top ) ,
                         MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE );
             }
         }
@@ -335,6 +335,10 @@ void Kinect::disableColor( ProcColor color ) {
 
 bool Kinect::isEnabled( ProcColor color ) {
     return m_enabledColors & ( 1 << color );
+}
+
+void Kinect::setScreenRect( RECT screenRect ) {
+    m_screenRect = screenRect;
 }
 
 void Kinect::newVideoFrame( struct nstream_t* streamObject , void* classObject ) {

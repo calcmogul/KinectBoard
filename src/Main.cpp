@@ -32,16 +32,16 @@ HWND gVideoWindow = NULL;
 HWND gDepthWindow = NULL;
 HICON gKinectON = NULL;
 HICON gKinectOFF = NULL;
-Kinect* gProjectorKinectPtr = NULL;
+Kinect gProjectorKinect;
 
 // Used for choosing on which monitor to draw test image
 std::list<MonitorIndex*> gMonitors;
-MonitorIndex currentMonitor = { { 0 , 0 , GetSystemMetrics(SM_CXSCREEN) , GetSystemMetrics(SM_CYSCREEN) } , NULL };
+MonitorIndex gCurrentMonitor = { { 0 , 0 , GetSystemMetrics(SM_CXSCREEN) , GetSystemMetrics(SM_CYSCREEN) } , NULL };
 
 template <typename T>
 std::string numberToString( T number );
 
-LRESULT CALLBACK OnEvent( HWND Handle , UINT Message , WPARAM WParam , LPARAM LParam );
+LRESULT CALLBACK MainProc( HWND handle , UINT message , WPARAM wParam , LPARAM lParam );
 
 BOOL CALLBACK AboutCbk( HWND hDlg , UINT message , WPARAM wParam , LPARAM lParam );
 BOOL CALLBACK MonitorCbk( HWND hDlg , UINT message , WPARAM wParam , LPARAM lParam );
@@ -79,7 +79,7 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     ZeroMemory( &WindowClass , sizeof(WNDCLASSEX) );
     WindowClass.cbSize        = sizeof(WNDCLASSEX);
     WindowClass.style         = 0;
-    WindowClass.lpfnWndProc   = &OnEvent;
+    WindowClass.lpfnWndProc   = &MainProc;
     WindowClass.cbClsExtra    = 0;
     WindowClass.cbWndExtra    = 0;
     WindowClass.hInstance     = Instance;
@@ -130,17 +130,16 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     ShowWindow( gDepthWindow , SW_MINIMIZE );
     /* ======================================= */
 
-    Kinect projectorKinect;
-    gProjectorKinectPtr = &projectorKinect;
+    gProjectorKinect.setScreenRect( gCurrentMonitor.dim );
 
     // Make windows receive stream events from Kinect instance
-    projectorKinect.registerVideoWindow( gVideoWindow );
-    projectorKinect.registerDepthWindow( gDepthWindow );
+    gProjectorKinect.registerVideoWindow( gVideoWindow );
+    gProjectorKinect.registerDepthWindow( gDepthWindow );
 
-    projectorKinect.startVideoStream();
-    projectorKinect.startDepthStream();
-    projectorKinect.enableColor( Processing::Red );
-    projectorKinect.enableColor( Processing::Blue );
+    gProjectorKinect.startVideoStream();
+    gProjectorKinect.startDepthStream();
+    gProjectorKinect.enableColor( Processing::Red );
+    gProjectorKinect.enableColor( Processing::Blue );
 
     // Calibrate Kinect
     SendMessage( gVideoWindow , WM_COMMAND , IDC_RECALIBRATE_BUTTON , 0 );
@@ -172,7 +171,7 @@ std::string numberToString( T number ) {
     return str;
 }
 
-LRESULT CALLBACK OnEvent( HWND handle , UINT message , WPARAM wParam , LPARAM lParam ) {
+LRESULT CALLBACK MainProc( HWND handle , UINT message , WPARAM wParam , LPARAM lParam ) {
     switch ( message ) {
     case WM_CREATE: {
         HWND recalibButton = CreateWindowEx( 0,
@@ -220,51 +219,47 @@ LRESULT CALLBACK OnEvent( HWND handle , UINT message , WPARAM wParam , LPARAM lP
 
         switch( wmId ) {
             case IDC_RECALIBRATE_BUTTON: {
-                if ( gProjectorKinectPtr != NULL ) {
-                    // If there is no Kinect connected, don't bother trying to retrieve images
-                    if ( gProjectorKinectPtr->isVideoStreamRunning() ) {
-                        TestScreen testWin( hInst , false );
-                        testWin.create( currentMonitor.dim );
+                // If there is no Kinect connected, don't bother trying to retrieve images
+                if ( gProjectorKinect.isVideoStreamRunning() ) {
+                    TestScreen testWin( hInst , false );
+                    testWin.create( gCurrentMonitor.dim );
 
-                        testWin.setColor( Processing::Red );
-                        testWin.display();
-                        // Give Kinect time to get image w/ test pattern in it
-                        Sleep( 750 );
-                        gProjectorKinectPtr->setCalibImage( Processing::Red );
+                    testWin.setColor( Processing::Red );
+                    testWin.display();
+                    // Give Kinect time to get image w/ test pattern in it
+                    Sleep( 750 );
+                    gProjectorKinect.setCalibImage( Processing::Red );
 
-                        testWin.setColor( Processing::Blue );
-                        testWin.display();
-                        // Give Kinect time to get image w/ test pattern in it
-                        Sleep( 750 );
-                        gProjectorKinectPtr->setCalibImage( Processing::Blue );
+                    testWin.setColor( Processing::Blue );
+                    testWin.display();
+                    // Give Kinect time to get image w/ test pattern in it
+                    Sleep( 750 );
+                    gProjectorKinect.setCalibImage( Processing::Blue );
 
-                        gProjectorKinectPtr->calibrate();
-                    }
+                    gProjectorKinect.calibrate();
                 }
 
                 break;
             }
 
             case IDC_STREAM_TOGGLE_BUTTON: {
-                if ( gProjectorKinectPtr != NULL ) {
-                    // If button was pressed from video display window
-                    if ( handle == gVideoWindow ) {
-                        if ( gProjectorKinectPtr->isVideoStreamRunning() ) {
-                            gProjectorKinectPtr->stopVideoStream();
-                        }
-                        else {
-                            gProjectorKinectPtr->startVideoStream();
-                        }
+                // If button was pressed from video display window
+                if ( handle == gVideoWindow ) {
+                    if ( gProjectorKinect.isVideoStreamRunning() ) {
+                        gProjectorKinect.stopVideoStream();
                     }
+                    else {
+                        gProjectorKinect.startVideoStream();
+                    }
+                }
 
-                    // If button was pressed from depth image display window
-                    else if ( handle == gDepthWindow ) {
-                        if ( gProjectorKinectPtr->isDepthStreamRunning() ) {
-                            gProjectorKinectPtr->stopDepthStream();
-                        }
-                        else {
-                            gProjectorKinectPtr->startDepthStream();
-                        }
+                // If button was pressed from depth image display window
+                else if ( handle == gDepthWindow ) {
+                    if ( gProjectorKinect.isDepthStreamRunning() ) {
+                        gProjectorKinect.stopDepthStream();
+                    }
+                    else {
+                        gProjectorKinect.startDepthStream();
                     }
                 }
 
@@ -295,12 +290,12 @@ LRESULT CALLBACK OnEvent( HWND handle , UINT message , WPARAM wParam , LPARAM lP
 
         // If we're painting the video display window
         if ( handle == gVideoWindow ) {
-            gProjectorKinectPtr->displayVideo( gVideoWindow , 0 , 0 , hdc );
+            gProjectorKinect.displayVideo( gVideoWindow , 0 , 0 , hdc );
         }
 
         // If we're painting the depth image display window
         else if ( handle == gDepthWindow ) {
-            gProjectorKinectPtr->displayDepth( gDepthWindow , 0 , 0 , hdc );
+            gProjectorKinect.displayDepth( gDepthWindow , 0 , 0 , hdc );
         }
 
         EndPaint( handle , &ps );
@@ -442,8 +437,8 @@ BOOL CALLBACK MonitorCbk( HWND hDlg , UINT message , WPARAM wParam , LPARAM lPar
         bool isButtonClicked = false;
         // Create a button that will represent the monitor in this dialog
         for ( std::list<MonitorIndex*>::iterator i = gMonitors.begin() ; i != gMonitors.end() ; i++ ) {
-            isButtonClicked = currentMonitor.dim.left == (*i)->dim.left && currentMonitor.dim.right == (*i)->dim.right &&
-                    currentMonitor.dim.top == (*i)->dim.top && currentMonitor.dim.bottom == (*i)->dim.bottom;
+            isButtonClicked = gCurrentMonitor.dim.left == (*i)->dim.left && gCurrentMonitor.dim.right == (*i)->dim.right &&
+                    gCurrentMonitor.dim.top == (*i)->dim.top && gCurrentMonitor.dim.bottom == (*i)->dim.bottom;
 
             if ( isButtonClicked ) {
                 std::strcpy( buttonText , "*" );
@@ -466,7 +461,7 @@ BOOL CALLBACK MonitorCbk( HWND hDlg , UINT message , WPARAM wParam , LPARAM lPar
                 NULL);
 
             if ( isButtonClicked ) {
-                currentMonitor = **i;
+                gCurrentMonitor = **i;
             }
         }
 
@@ -497,15 +492,15 @@ BOOL CALLBACK MonitorCbk( HWND hDlg , UINT message , WPARAM wParam , LPARAM lPar
                 if ( cursorPos.x > buttonPos.left && cursorPos.x < buttonPos.right
                         && cursorPos.y > buttonPos.top && cursorPos.y < buttonPos.bottom ) {
                     // Remove asterisk from previous button's text
-                    SetWindowText( currentMonitor.activeButton ,
-                            (numberToString( currentMonitor.dim.right - currentMonitor.dim.left ) + " x " + numberToString( currentMonitor.dim.bottom - currentMonitor.dim.top ) + " ").c_str() );
+                    SetWindowText( gCurrentMonitor.activeButton ,
+                            (" " + numberToString( gCurrentMonitor.dim.right - gCurrentMonitor.dim.left ) + " x " + numberToString( gCurrentMonitor.dim.bottom - gCurrentMonitor.dim.top ) + " ").c_str() );
 
                     // Set new selected button
-                    currentMonitor = **i;
+                    gCurrentMonitor = **i;
 
                     // Add asterisk to new button's text
-                    SetWindowText( currentMonitor.activeButton ,
-                            ("*" + numberToString( currentMonitor.dim.right - currentMonitor.dim.left ) + " x " + numberToString( currentMonitor.dim.bottom - currentMonitor.dim.top ) + " ").c_str() );
+                    SetWindowText( gCurrentMonitor.activeButton ,
+                            ("*" + numberToString( gCurrentMonitor.dim.right - gCurrentMonitor.dim.left ) + " x " + numberToString( gCurrentMonitor.dim.bottom - gCurrentMonitor.dim.top ) + " ").c_str() );
                 }
             }
         }
@@ -521,7 +516,10 @@ BOOL CALLBACK MonitorCbk( HWND hDlg , UINT message , WPARAM wParam , LPARAM lPar
             }
             gMonitors.clear();
 
-            currentMonitor.activeButton = NULL;
+            gCurrentMonitor.activeButton = NULL;
+
+            // Give Kinect correct monitor dimensions so mouse is moved to proper position
+            gProjectorKinect.setScreenRect( gCurrentMonitor.dim );
 
             EndDialog( hDlg , LOWORD(wParam) );
         }

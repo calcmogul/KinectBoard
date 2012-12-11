@@ -108,6 +108,8 @@ public:
     // Returns true if there is a calibration image of the given color enabled
     bool isEnabled( ProcColor color );
 
+    void setScreenRect( RECT screenRect );
+
 protected:
     sf::Mutex m_vidImageMutex;
     sf::Mutex m_vidDisplayMutex;
@@ -127,6 +129,8 @@ protected:
     static void newDepthFrame( struct nstream_t* streamObject , void* classObject );
 
 private:
+    RECT m_screenRect;
+
     struct knt_inst_t* m_kinect;
 
     HBITMAP m_vidImage;
