@@ -141,9 +141,6 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     gProjectorKinect.enableColor( Processing::Red );
     gProjectorKinect.enableColor( Processing::Blue );
 
-    // Calibrate Kinect
-    SendMessage( gVideoWindow , WM_COMMAND , IDC_RECALIBRATE_BUTTON , 0 );
-
     while ( GetMessage( &Message , NULL , 0 , 0 ) > 0 ) {
         // If a message was waiting in the message queue, process it
         TranslateMessage( &Message );
