@@ -84,15 +84,13 @@ quad_getquad(struct quad_t *quad, CvPoint point)
     return 0;
 }
 
+#if 1
 /* The internal sorting function used by qsort(3) as used by
    sortquad() */
 int
 quad_sortfunc(const void *arg0, const void *arg1)
 {
-    const struct quadsort_t *quad0 = arg0;
-    const struct quadsort_t *quad1 = arg1;
-
-    return quad0->quadrant - quad1->quadrant;
+    return ((struct quadsort_t*)arg0)->quadrant - ((struct quadsort_t*)arg1)->quadrant;
 }
 
 /* Re-orders the points in a quadrilateral in a counter-clockwise
@@ -121,23 +119,13 @@ sortquad(struct quad_t *quad_in)
     return;
 }
 
-#if 0
+#else
 /* The internal sorting function used by qsort(3) as used by
    sortquad() */
 int
 quad_sortfunc(const void *arg0, const void *arg1)
 {
-    double tmp;
-
-    const struct quadsort_t *quad0 = arg0;
-    const struct quadsort_t *quad1 = arg1;
-
-    tmp = quad1->angle - quad0->angle;
-    if(tmp < 0) return -1;
-    if(tmp > 0) return 1;
-    if(tmp == 0) return 0;
-
-    return 0;
+    return ((struct quadsort_t*)arg1)->angle - ((struct quadsort_t*)arg0)->angle;
 }
 
 /* Re-orders the points in a quadrilateral in a counter-clockwise
@@ -149,14 +137,27 @@ sortquad(struct quad_t *quad_in)
     struct quadsort_t sortlist[4];
 
     if(quad_in == NULL)
-        return 1;
+        return;
+
+    /* get the point in the middle of the quadrilateral by
+       averaging it's four points */
+    int mpx = 0;
+    int mpy = 0;
+    for ( i = 0 ; i < 4 ; i++ ) {
+        mpx += quad_in->point[i].x;
+        mpy += quad_in->point[i].y;
+    }
+
+    mpx /= 4;
+    mpy /= 4;
 
     /* create the array of structs to be sorted */
     for(i = 0; i < 4; i++){
+        sortlist[i].point.x = quad_in->point[i].x;
         sortlist[i].point = quad_in->point[i];
-        sortlist[i].angle = atan(
-            (double)sortlist[i].point.y/
-            (double)sortlist[i].point.x);
+        sortlist[i].angle = atan2(
+            (double)(sortlist[i].point.y - mpy),
+            (double)(sortlist[i].point.x - mpx));
     }
 
     /* sort the list */
@@ -623,7 +624,7 @@ findScreenLocation(
         return 1;
 
     /* Sort the calibration quadrilateral's points
-       counter-clockwize */
+       counter-clockwise */
     sortquad(quad);
 
     for(plist = plist_in; plist != NULL; plist = plist->next){
