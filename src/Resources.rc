@@ -7,15 +7,30 @@ kinect2-OFF ICON "OpenKinectOFF.ico"
 ////////// Menu
 mainMenu MENU
 BEGIN
+    POPUP "&Controls"
+    BEGIN
+        MENUITEM "&Start Tracking\tCtrl+V",  IDM_STARTTRACK
+        MENUITEM "&Stop Tracking\tCtrl+C",   IDM_STOPTRACK
+        MENUITEM SEPARATOR
+        MENUITEM "&Recalibrate\tCtrl+R",     IDC_RECALIBRATE_BUTTON
+    END
     POPUP "&Preferences"
     BEGIN
-        MENUITEM "&Change Board Monitor",     IDM_CHANGE_MONITOR
+        MENUITEM "&Change Board Monitor",    IDM_CHANGEMONITOR
     END
     POPUP "&Help"
     BEGIN
-        MENUITEM "&About KinectBoard",  IDM_ABOUT
+        MENUITEM "&Help",                    IDM_HELP
+        MENUITEM SEPARATOR
+        MENUITEM "&About KinectBoard",       IDM_ABOUT
     END
 END
+
+////////// Accelerators
+KeyAccel ACCELERATORS {
+    "C",     IDM_STARTTRACK, CONTROL, VIRTKEY
+    "V",     IDM_STOPTRACK,  CONTROL, VIRTKEY
+}
 
 ////////// About Dialog
 IDD_ABOUTBOX DIALOGEX (320 - 85) / 2 - 18, (240 - 31) / 2 - 22, 170, 62
@@ -36,7 +51,7 @@ STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSM
 CAPTION "Change Board Monitor"
 FONT 10, "MS Shell Dlg"
 BEGIN
-    DEFPUSHBUTTON   "OK", IDOK, 113, 48, 50, 14, WS_GROUP
+    DEFPUSHBUTTON   "OK", IDOK, 114, 49, 50, 14, WS_GROUP
 END
 
 ////////// Properties

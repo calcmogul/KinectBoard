@@ -18,6 +18,7 @@ Kinect::Kinect() :
         m_depthImage( NULL ) ,
         m_vidWindow( NULL ) ,
         m_depthWindow( NULL ) ,
+        m_moveMouse( true ) ,
         m_foundScreen( false ) ,
         m_quad( NULL ) ,
         m_plistRaw( NULL ) ,
@@ -296,7 +297,8 @@ void Kinect::lookForCursors() {
 
         /* Create a list of points which represent potential locations
            of the pointer */
-        IplImage* tempImage = RGBtoIplImage( reinterpret_cast<unsigned char*>(m_vidBuffer) , ImageVars::width , ImageVars::height );
+        IplImage* tempImage =
+                RGBtoIplImage( reinterpret_cast<unsigned char*>(m_vidBuffer) , ImageVars::width , ImageVars::height );
         findImageLocation( tempImage , &m_plistRaw , FLT_RED );
         cvReleaseImage( &tempImage );
 
@@ -304,8 +306,9 @@ void Kinect::lookForCursors() {
 
         /* Identify the points in m_plistRaw which are located inside
            the boundary defined by m_quad, and scale them to the size
-           of the computer's main screen. */
-        if ( m_plistRaw != NULL ) {
+           of the computer's main screen. These are mouse pointer
+           candidates. */
+        if ( m_plistRaw != NULL && m_moveMouse ) {
             findScreenLocation( m_plistRaw , &m_plistProc , m_quad , m_screenRect.right - m_screenRect.left , m_screenRect.bottom - m_screenRect.top );
 
             if ( m_plistProc != NULL ) {
@@ -316,6 +319,10 @@ void Kinect::lookForCursors() {
             }
         }
     }
+}
+
+void Kinect::setMouseTracking( bool on ) {
+    m_moveMouse = on;
 }
 
 void Kinect::enableColor( ProcColor color ) {

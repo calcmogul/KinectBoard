@@ -84,7 +84,7 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     WindowClass.cbWndExtra    = 0;
     WindowClass.hInstance     = Instance;
     WindowClass.hIcon         = gKinectOFF;
-    WindowClass.hCursor       = NULL;
+    WindowClass.hCursor       = LoadCursor( NULL , IDC_ARROW );
     WindowClass.hbrBackground = mainBrush;
     WindowClass.lpszMenuName  = "mainMenu";
     WindowClass.lpszClassName = mainClassName;
@@ -92,6 +92,7 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     RegisterClassEx(&WindowClass);
 
     MSG Message;
+    HACCEL hAccel;
 
     /* ===== Make two windows to display ===== */
     RECT winSize = { 0 , 0 , static_cast<int>(ImageVars::width) , static_cast<int>(ImageVars::height) }; // set the size, but not the position
@@ -130,6 +131,9 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     ShowWindow( gDepthWindow , SW_MINIMIZE );
     /* ======================================= */
 
+    // Load keyboard accelerators
+    hAccel = LoadAccelerators( hInst , "KeyAccel" );
+
     gProjectorKinect.setScreenRect( gCurrentMonitor.dim );
 
     // Make windows receive stream events from Kinect instance
@@ -142,9 +146,19 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     gProjectorKinect.enableColor( Processing::Blue );
 
     while ( GetMessage( &Message , NULL , 0 , 0 ) > 0 ) {
-        // If a message was waiting in the message queue, process it
-        TranslateMessage( &Message );
-        DispatchMessage( &Message );
+        if (!TranslateAccelerator(
+                gVideoWindow,      // Handle to receiving window
+                hAccel,            // Handle to active accelerator table
+                &Message) &&       // Message data
+            !TranslateAccelerator(
+                gDepthWindow,      // Handle to receiving window
+                hAccel,            // Handle to active accelerator table
+                &Message))         // Message data
+        {
+            // If a message was waiting in the message queue, process it
+            TranslateMessage( &Message );
+            DispatchMessage( &Message );
+        }
     }
 
     DestroyIcon( gKinectON );
@@ -199,7 +213,7 @@ LRESULT CALLBACK MainProc( HWND handle , UINT message , WPARAM wParam , LPARAM l
                 100,
                 28,
                 handle,
-                reinterpret_cast<HMENU>( IDC_STREAM_TOGGLE_BUTTON ),
+                reinterpret_cast<HMENU>( IDC_STREAMTOGGLE_BUTTON ),
                 hInst,
                 NULL);
 
@@ -239,7 +253,7 @@ LRESULT CALLBACK MainProc( HWND handle , UINT message , WPARAM wParam , LPARAM l
                 break;
             }
 
-            case IDC_STREAM_TOGGLE_BUTTON: {
+            case IDC_STREAMTOGGLE_BUTTON: {
                 // If button was pressed from video display window
                 if ( handle == gVideoWindow ) {
                     if ( gProjectorKinect.isVideoStreamRunning() ) {
@@ -263,8 +277,28 @@ LRESULT CALLBACK MainProc( HWND handle , UINT message , WPARAM wParam , LPARAM l
                 break;
             }
 
-            case IDM_CHANGE_MONITOR: {
+            case IDM_STARTTRACK: {
+                gProjectorKinect.setMouseTracking( true );
+                MessageBox( handle , "Mouse tracking has been enabled." , "Mouse Tracking" , MB_ICONINFORMATION | MB_OK );
+
+                break;
+            }
+
+            case IDM_STOPTRACK: {
+                gProjectorKinect.setMouseTracking( false );
+                MessageBox( handle , "Mouse tracking has been disabled." , "Mouse Tracking" , MB_ICONINFORMATION | MB_OK );
+
+                break;
+            }
+
+            case IDM_CHANGEMONITOR: {
                 DialogBox( hInst , MAKEINTRESOURCE(IDD_MONITORBOX) , handle , MonitorCbk );
+
+                break;
+            }
+
+            case IDM_HELP: {
+                // TODO: Create help dialog
 
                 break;
             }
@@ -378,7 +412,7 @@ BOOL CALLBACK MonitorCbk( HWND hDlg , UINT message , WPARAM wParam , LPARAM lPar
 
         // Store button box's width and height
         unsigned int boxWidth = windowSize.right - windowSize.left - 18;
-        unsigned int boxHeight = 82 - 9;
+        unsigned int boxHeight = 89 - 9;
 
         // All buttons are scaled to fit within this window
         HWND buttonBox = CreateWindowEx( 0,

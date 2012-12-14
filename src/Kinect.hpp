@@ -69,13 +69,13 @@ public:
     void registerDepthWindow( HWND window );
 
     /* Displays most recently received RGB image
-     * If it's called in reponse to the WM_PAINT message, pass in the window's
+     * If it's called in response to the WM_PAINT message, pass in the window's
      * device context received from BeginPaint()
      */
     void displayVideo( HWND window , int x , int y , HDC deviceContext = NULL );
 
     /* Displays most recently processed depth image
-    * If it's called in reponse to the WM_PAINT message, pass in the window's
+    * If it's called in response to the WM_PAINT message, pass in the window's
     * device context received from BeginPaint()
     */
     void displayDepth( HWND window , int x , int y , HDC deviceContext = NULL );
@@ -99,6 +99,9 @@ public:
      */
     void lookForCursors();
 
+    // Turns mouse tracking on/off so user can regain control
+    void setMouseTracking( bool on );
+
     // Adds color to calibration steps
     void enableColor( ProcColor color );
 
@@ -108,6 +111,9 @@ public:
     // Returns true if there is a calibration image of the given color enabled
     bool isEnabled( ProcColor color );
 
+    /* Give class the region of the screen being tracked so the mouse is moved
+     * on the correct monitor
+     */
     void setScreenRect( RECT screenRect );
 
 protected:
@@ -153,6 +159,8 @@ private:
     // Stores which colored images to include in calibration
     char m_enabledColors;
 
+    // Used for mouse tracking
+    bool m_moveMouse;
     bool m_foundScreen;
     struct quad_t* m_quad;
     struct plist_t* m_plistRaw;
