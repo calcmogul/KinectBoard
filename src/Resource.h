@@ -10,13 +10,14 @@
 #define IDD_ABOUTBOX              101
 #define IDD_MONITORBOX            102
 
-#define IDC_RECALIBRATE_BUTTON    103
-#define IDC_STREAM_TOGGLE_BUTTON  104
-#ifndef IDC_STATIC
+#define IDC_RECALIBRATE_BUTTON    201
+#define IDC_STREAMTOGGLE_BUTTON   202
 #define IDC_STATIC                -1
-#endif
 
-#define IDM_CHANGE_MONITOR        105
-#define IDM_ABOUT                 106
+#define IDM_STARTTRACK            301
+#define IDM_STOPTRACK             302
+#define IDM_CHANGEMONITOR         303
+#define IDM_HELP                  304
+#define IDM_ABOUT                 305
 
 #endif // RESOURCE_H
