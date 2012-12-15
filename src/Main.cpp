@@ -27,11 +27,11 @@ typedef struct MonitorIndex {
 } monitorIndex;
 
 // Global because the drawing is set up to be continuous in CALLBACK OnEvent
-HINSTANCE hInst = NULL;
-HWND gVideoWindow = NULL;
-HWND gDepthWindow = NULL;
+HINSTANCE gInstance = NULL;
+HWND gDisplayWindow = NULL;
 HICON gKinectON = NULL;
 HICON gKinectOFF = NULL;
+HMENU gMainMenu = NULL;
 Kinect gProjectorKinect;
 
 // Used for choosing on which monitor to draw test image
@@ -64,7 +64,11 @@ BOOL CALLBACK StopStreamChildCbk(
 );
 
 INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
-    hInst = Instance;
+    gInstance = Instance;
+
+    // Initialize menu bar and set the check boxes' initial state
+    gMainMenu = LoadMenu( Instance , "mainMenu" );
+    CheckMenuItem( gMainMenu , IDM_DISPLAYVIDEO , MF_BYCOMMAND | MF_CHECKED );
 
     const char* mainClassName = "KinectBoard";
 
@@ -72,7 +76,6 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     gKinectOFF = LoadIcon( Instance , "kinect2-OFF" );
 
     HBRUSH mainBrush = CreateSolidBrush( RGB( 0 , 0 , 0 ) );
-    HMENU mainMenu = LoadMenu( Instance , "mainMenu" );
 
     // Define a class for our main window
     WNDCLASSEX WindowClass;
@@ -102,43 +105,27 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
             TRUE ); // window has menu
 
     // Create a new window to be used for the lifetime of the application
-    gVideoWindow = CreateWindowEx( 0 ,
+    gDisplayWindow = CreateWindowEx( 0 ,
             mainClassName ,
-            "KinectBoard - Video" ,
+            "KinectBoard" ,
             WS_SYSMENU | WS_CAPTION | WS_VISIBLE | WS_MINIMIZEBOX | WS_CLIPCHILDREN ,
             ( GetSystemMetrics(SM_CXSCREEN) - ( winSize.right - winSize.left ) ) / 2 ,
             ( GetSystemMetrics(SM_CYSCREEN) - ( winSize.bottom - winSize.top ) ) / 2 ,
             winSize.right - winSize.left , // returns image width (resized as window)
             winSize.bottom - winSize.top , // returns image height (resized as window)
             NULL ,
-            mainMenu ,
+            gMainMenu ,
             Instance ,
             NULL );
-
-    gDepthWindow = CreateWindowEx( 0 ,
-            mainClassName ,
-            "KinectBoard - Depth" ,
-            WS_SYSMENU | WS_CAPTION | WS_VISIBLE | WS_MINIMIZEBOX | WS_CLIPCHILDREN ,
-            ( GetSystemMetrics(SM_CXSCREEN) - ( winSize.right - winSize.left ) ) / 2 ,
-            ( GetSystemMetrics(SM_CYSCREEN) - ( winSize.bottom - winSize.top ) ) / 2 ,
-            winSize.right - winSize.left , // returns image width (resized as window)
-            winSize.bottom - winSize.top , // returns image height (resized as window)
-            NULL ,
-            mainMenu ,
-            Instance ,
-            NULL );
-
-    ShowWindow( gDepthWindow , SW_MINIMIZE );
     /* ======================================= */
 
     // Load keyboard accelerators
-    hAccel = LoadAccelerators( hInst , "KeyAccel" );
+    hAccel = LoadAccelerators( gInstance , "KeyAccel" );
 
     gProjectorKinect.setScreenRect( gCurrentMonitor.dim );
 
-    // Make windows receive stream events from Kinect instance
-    gProjectorKinect.registerVideoWindow( gVideoWindow );
-    gProjectorKinect.registerDepthWindow( gDepthWindow );
+    // Make window receive video stream events and image from Kinect instance
+    gProjectorKinect.registerVideoWindow( gDisplayWindow );
 
     gProjectorKinect.startVideoStream();
     gProjectorKinect.startDepthStream();
@@ -146,14 +133,10 @@ INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     gProjectorKinect.enableColor( Processing::Blue );
 
     while ( GetMessage( &Message , NULL , 0 , 0 ) > 0 ) {
-        if (!TranslateAccelerator(
-                gVideoWindow,      // Handle to receiving window
+        if ( !TranslateAccelerator(
+                gDisplayWindow,    // Handle to receiving window
                 hAccel,            // Handle to active accelerator table
-                &Message) &&       // Message data
-            !TranslateAccelerator(
-                gDepthWindow,      // Handle to receiving window
-                hAccel,            // Handle to active accelerator table
-                &Message))         // Message data
+                &Message) )        // Message data
         {
             // If a message was waiting in the message queue, process it
             TranslateMessage( &Message );
@@ -195,7 +178,7 @@ LRESULT CALLBACK MainProc( HWND handle , UINT message , WPARAM wParam , LPARAM l
                 28,
                 handle,
                 reinterpret_cast<HMENU>( IDC_RECALIBRATE_BUTTON ),
-                hInst,
+                gInstance,
                 NULL);
 
         SendMessage( recalibButton,
@@ -214,7 +197,7 @@ LRESULT CALLBACK MainProc( HWND handle , UINT message , WPARAM wParam , LPARAM l
                 28,
                 handle,
                 reinterpret_cast<HMENU>( IDC_STREAMTOGGLE_BUTTON ),
-                hInst,
+                gInstance,
                 NULL);
 
         SendMessage( toggleStreamButton,
@@ -232,7 +215,7 @@ LRESULT CALLBACK MainProc( HWND handle , UINT message , WPARAM wParam , LPARAM l
             case IDC_RECALIBRATE_BUTTON: {
                 // If there is no Kinect connected, don't bother trying to retrieve images
                 if ( gProjectorKinect.isVideoStreamRunning() ) {
-                    TestScreen testWin( hInst , false );
+                    TestScreen testWin( gInstance , false );
                     testWin.create( gCurrentMonitor.dim );
 
                     testWin.setColor( Processing::Red );
@@ -255,7 +238,7 @@ LRESULT CALLBACK MainProc( HWND handle , UINT message , WPARAM wParam , LPARAM l
 
             case IDC_STREAMTOGGLE_BUTTON: {
                 // If button was pressed from video display window
-                if ( handle == gVideoWindow ) {
+                if ( handle == gProjectorKinect.getRegisteredVideoWindow() ) {
                     if ( gProjectorKinect.isVideoStreamRunning() ) {
                         gProjectorKinect.stopVideoStream();
                     }
@@ -265,7 +248,7 @@ LRESULT CALLBACK MainProc( HWND handle , UINT message , WPARAM wParam , LPARAM l
                 }
 
                 // If button was pressed from depth image display window
-                else if ( handle == gDepthWindow ) {
+                else if ( handle == gProjectorKinect.getRegisteredDepthWindow() ) {
                     if ( gProjectorKinect.isDepthStreamRunning() ) {
                         gProjectorKinect.stopDepthStream();
                     }
@@ -291,8 +274,32 @@ LRESULT CALLBACK MainProc( HWND handle , UINT message , WPARAM wParam , LPARAM l
                 break;
             }
 
+            case IDM_DISPLAYVIDEO: {
+                // Check "Display Video" and uncheck "Display Depth"
+                CheckMenuItem( gMainMenu , IDM_DISPLAYVIDEO , MF_BYCOMMAND | MF_CHECKED );
+                CheckMenuItem( gMainMenu , IDM_DISPLAYDEPTH , MF_BYCOMMAND | MF_UNCHECKED );
+
+                // Stop depth stream from displaying and switch to video stream
+                gProjectorKinect.registerVideoWindow( gDisplayWindow );
+                gProjectorKinect.unregisterDepthWindow();
+
+                break;
+            }
+
+            case IDM_DISPLAYDEPTH: {
+                // Uncheck "Display Video" and check "Display Depth"
+                CheckMenuItem( gMainMenu , IDM_DISPLAYVIDEO , MF_BYCOMMAND | MF_UNCHECKED );
+                CheckMenuItem( gMainMenu , IDM_DISPLAYDEPTH , MF_BYCOMMAND | MF_CHECKED );
+
+                // Stop video stream from displaying and switch to depth stream
+                gProjectorKinect.unregisterVideoWindow();
+                gProjectorKinect.registerDepthWindow( gDisplayWindow );
+
+                break;
+            }
+
             case IDM_CHANGEMONITOR: {
-                DialogBox( hInst , MAKEINTRESOURCE(IDD_MONITORBOX) , handle , MonitorCbk );
+                DialogBox( gInstance , MAKEINTRESOURCE(IDD_MONITORBOX) , handle , MonitorCbk );
 
                 break;
             }
@@ -304,7 +311,7 @@ LRESULT CALLBACK MainProc( HWND handle , UINT message , WPARAM wParam , LPARAM l
             }
 
             case IDM_ABOUT: {
-                DialogBox( hInst , MAKEINTRESOURCE(IDD_ABOUTBOX) , handle , AboutCbk );
+                DialogBox( gInstance , MAKEINTRESOURCE(IDD_ABOUTBOX) , handle , AboutCbk );
 
                 break;
             }
@@ -320,13 +327,13 @@ LRESULT CALLBACK MainProc( HWND handle , UINT message , WPARAM wParam , LPARAM l
         hdc = BeginPaint( handle , &ps );
 
         // If we're painting the video display window
-        if ( handle == gVideoWindow ) {
-            gProjectorKinect.displayVideo( gVideoWindow , 0 , 0 , hdc );
+        if ( handle == gProjectorKinect.getRegisteredVideoWindow() ) {
+            gProjectorKinect.displayVideo( gDisplayWindow , 0 , 0 , hdc );
         }
 
         // If we're painting the depth image display window
-        else if ( handle == gDepthWindow ) {
-            gProjectorKinect.displayDepth( gDepthWindow , 0 , 0 , hdc );
+        else if ( handle == gProjectorKinect.getRegisteredDepthWindow() ) {
+            gProjectorKinect.displayDepth( gDisplayWindow , 0 , 0 , hdc );
         }
 
         EndPaint( handle , &ps );
@@ -335,8 +342,8 @@ LRESULT CALLBACK MainProc( HWND handle , UINT message , WPARAM wParam , LPARAM l
     }
 
     case WM_DESTROY: {
-        // If a display window is being closed, exit the application
-        if ( handle == gVideoWindow || handle == gDepthWindow ) {
+        // If the display window is being closed, exit the application
+        if ( handle == gDisplayWindow ) {
             PostQuitMessage( 0 );
         }
 
@@ -425,7 +432,7 @@ BOOL CALLBACK MonitorCbk( HWND hDlg , UINT message , WPARAM wParam , LPARAM lPar
             boxHeight,
             hDlg,
             reinterpret_cast<HMENU>( NULL ),
-            hInst,
+            gInstance,
             NULL);
 
         EnumDisplayMonitors(
@@ -488,7 +495,7 @@ BOOL CALLBACK MonitorCbk( HWND hDlg , UINT message , WPARAM wParam , LPARAM lPar
                 boxHeight * ( (*i)->dim.bottom - (*i)->dim.top ) / desktopHeight,
                 buttonBox,
                 reinterpret_cast<HMENU>( NULL ),
-                hInst,
+                gInstance,
                 NULL);
 
             if ( isButtonClicked ) {

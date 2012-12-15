@@ -17,6 +17,9 @@ BEGIN
     POPUP "&Preferences"
     BEGIN
         MENUITEM "&Change Board Monitor",    IDM_CHANGEMONITOR
+        MENUITEM SEPARATOR
+        MENUITEM "&Display Video",           IDM_DISPLAYVIDEO
+        MENUITEM "&Display Depth",           IDM_DISPLAYDEPTH
     END
     POPUP "&Help"
     BEGIN

@@ -16,8 +16,10 @@
 
 #define IDM_STARTTRACK            301
 #define IDM_STOPTRACK             302
-#define IDM_CHANGEMONITOR         303
-#define IDM_HELP                  304
-#define IDM_ABOUT                 305
+#define IDM_DISPLAYVIDEO          303
+#define IDM_DISPLAYDEPTH          304
+#define IDM_CHANGEMONITOR         305
+#define IDM_HELP                  306
+#define IDM_ABOUT                 307
 
 #endif // RESOURCE_H

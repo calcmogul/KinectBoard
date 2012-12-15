@@ -68,6 +68,22 @@ public:
     // Set window to which to send Kinect depth stream messages
     void registerDepthWindow( HWND window );
 
+    // Stop Kinect video stream from displaying on the registered window
+    void unregisterVideoWindow();
+
+    // Stop Kinect depth stream from displaying on the registered window
+    void unregisterDepthWindow();
+
+    /* Returns currently registered video window
+     * (may return NULL if no window is registered)
+     */
+    const HWND getRegisteredVideoWindow();
+
+    /* Returns currently registered depth window
+     * (may return NULL if no window is registered)
+     */
+    const HWND getRegisteredDepthWindow();
+
     /* Displays most recently received RGB image
      * If it's called in response to the WM_PAINT message, pass in the window's
      * device context received from BeginPaint()

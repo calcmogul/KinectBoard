@@ -114,7 +114,9 @@ void Kinect::startVideoStream() {
         if ( m_kinect->rgb->state == NSTREAM_DOWN ) {
             if ( knt_startstream( m_kinect->rgb ) == 0 ) {
                 m_vidWindowMutex.lock();
-                PostMessage( m_vidWindow , WM_KINECT_VIDEOSTART , 0 , 0 );
+                if ( m_vidWindow != NULL ) {
+                    PostMessage( m_vidWindow , WM_KINECT_VIDEOSTART , 0 , 0 );
+                }
                 m_vidWindowMutex.unlock();
             }
         }
@@ -138,7 +140,9 @@ void Kinect::startDepthStream() {
         if ( m_kinect->depth->state == NSTREAM_DOWN ) {
             if ( knt_startstream( m_kinect->depth ) == 0 ) {
                 m_depthWindowMutex.lock();
-                PostMessage( m_depthWindow , WM_KINECT_DEPTHSTART , 0 , 0 );
+                if ( m_depthWindow != NULL ) {
+                    PostMessage( m_depthWindow , WM_KINECT_DEPTHSTART , 0 , 0 );
+                }
                 m_depthWindowMutex.unlock();
             }
         }
@@ -152,7 +156,9 @@ void Kinect::stopVideoStream() {
         m_foundScreen = false;
 
         m_vidWindowMutex.lock();
-        PostMessage( m_vidWindow , WM_KINECT_VIDEOSTOP , 0 , 0 );
+        if ( m_vidWindow != NULL ) {
+            PostMessage( m_vidWindow , WM_KINECT_VIDEOSTOP , 0 , 0 );
+        }
         m_vidWindowMutex.unlock();
     }
 }
@@ -163,7 +169,9 @@ void Kinect::stopDepthStream() {
         knt_depth_stopstream( m_kinect->depth );
 
         m_depthWindowMutex.lock();
-        PostMessage( m_depthWindow , WM_KINECT_DEPTHSTOP , 0 , 0 );
+        if ( m_depthWindow != NULL ) {
+            PostMessage( m_depthWindow , WM_KINECT_DEPTHSTOP , 0 , 0 );
+        }
         m_depthWindowMutex.unlock();
     }
 }
@@ -202,6 +210,38 @@ void Kinect::registerDepthWindow( HWND window ) {
     m_depthWindowMutex.lock();
     m_depthWindow = window;
     m_depthWindowMutex.unlock();
+}
+
+void Kinect::unregisterVideoWindow() {
+    m_vidWindowMutex.lock();
+    m_vidWindow = NULL;
+    m_vidWindowMutex.unlock();
+}
+
+void Kinect::unregisterDepthWindow() {
+    m_depthWindowMutex.lock();
+    m_depthWindow = NULL;
+    m_depthWindowMutex.unlock();
+}
+
+const HWND Kinect::getRegisteredVideoWindow() {
+    HWND sDepthWindow;
+
+    m_depthWindowMutex.lock();
+    sDepthWindow = m_vidWindow;
+    m_depthWindowMutex.unlock();
+
+    return sDepthWindow;
+}
+
+const HWND Kinect::getRegisteredDepthWindow() {
+    HWND sVideoWindow;
+
+    m_vidWindowMutex.lock();
+    sVideoWindow = m_vidWindow;
+    m_vidWindowMutex.unlock();
+
+    return sVideoWindow;
 }
 
 void Kinect::displayVideo( HWND window , int x , int y , HDC deviceContext ) {
@@ -389,7 +429,9 @@ void Kinect::newVideoFrame( struct nstream_t* streamObject , void* classObject )
     // Limit video frame rate
     if ( 1.f / kinectPtr->m_vidFrameTime.getElapsedTime().asSeconds() < kinectPtr->m_vidFrameRate ) {
         kinectPtr->m_vidWindowMutex.lock();
-        kinectPtr->displayVideo( kinectPtr->m_vidWindow , 0 , 0 );
+        if ( kinectPtr->m_vidWindow != NULL ) {
+            kinectPtr->displayVideo( kinectPtr->m_vidWindow , 0 , 0 );
+        }
         kinectPtr->m_vidWindowMutex.unlock();
 
         kinectPtr->m_vidFrameTime.restart();
@@ -441,7 +483,9 @@ void Kinect::newDepthFrame( struct nstream_t* streamObject , void* classObject )
     // Limit depth image stream frame rate
     if ( 1.f / kinectPtr->m_depthFrameTime.getElapsedTime().asSeconds() < kinectPtr->m_depthFrameRate ) {
         kinectPtr->m_depthWindowMutex.lock();
-        kinectPtr->displayDepth( kinectPtr->m_depthWindow , 0 , 0 );
+        if ( kinectPtr->m_depthWindow != NULL ) {
+            kinectPtr->displayDepth( kinectPtr->m_depthWindow , 0 , 0 );
+        }
         kinectPtr->m_depthWindowMutex.unlock();
 
         kinectPtr->m_depthFrameTime.restart();
