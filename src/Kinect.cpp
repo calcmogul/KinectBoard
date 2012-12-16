@@ -10,8 +10,10 @@
 #include <cstdio>
 #include "CKinect/parse.h"
 #include "Kinect.hpp"
-#include "WinAPIWrapper.h"
+#include "HIDinput.h"
 #include "SFML/Graphics/Image.hpp"
+
+sf::Color HSVtoRGB( unsigned short hue , unsigned short saturation , unsigned short value );
 
 Kinect::Kinect() :
         m_vidImage( NULL ) ,
@@ -453,16 +455,18 @@ void Kinect::newDepthFrame( struct nstream_t* streamObject , void* classObject )
 
         depth = Kinect::rawDepthToMeters( depthVal );
 
+        sf::Color color = HSVtoRGB( 360 * depth / 5.f , 100 , 100 );
+
         // Assign values from 0 to 5 meters with a shade from black to white
-        kinectPtr->m_cvDepthImage->imageData[4 * index + 0] = 255.f * depth / 5.f;
-        kinectPtr->m_cvDepthImage->imageData[4 * index + 1] = 255.f * depth / 5.f;
-        kinectPtr->m_cvDepthImage->imageData[4 * index + 2] = 255.f * depth / 5.f;
+        kinectPtr->m_cvDepthImage->imageData[4 * index + 0] = color.b;
+        kinectPtr->m_cvDepthImage->imageData[4 * index + 1] = color.g;
+        kinectPtr->m_cvDepthImage->imageData[4 * index + 2] = color.r;
     }
 
     // Make HBITMAP from pixel array
     kinectPtr->m_depthDisplayMutex.lock();
 
-    // B , G , R , A
+    //                             B ,    G ,    R ,    A
     CvScalar lineColor = cvScalar( 0x00 , 0xFF , 0x00 , 0xFF );
 
     if ( kinectPtr->m_foundScreen ) {
@@ -560,4 +564,58 @@ double Kinect::rawDepthToMeters( unsigned short depthValue ) {
     }
 
     return 0.0;
+}
+
+sf::Color HSVtoRGB( unsigned short hue , unsigned short saturation , unsigned short value ) {
+    /* H is [0,360]
+     * S_HSV is [0,1]
+     * V is [0,1]
+     */
+
+    sf::Color color( 0 , 0 , 0 );
+    float C = value / 100 * saturation / 100;
+    float H = hue / 60;
+    float X = C * ( 1 - abs( static_cast<int>(floor(H)) % 2 - 1 ) );
+
+    if ( 0 <= H && H < 1 ) {
+        color.r = 255 * C;
+        color.g = 255 * X;
+        color.b = 0;
+    }
+    else if ( 1 <= H && H < 2 ) {
+        color.r = 255 * X;
+        color.g = 255 * C;
+        color.b = 0;
+    }
+    else if ( 2 <= H && H < 3 ) {
+        color.r = 0;
+        color.g = 255 * C;
+        color.b = 255 * X;
+    }
+    else if ( 3 <= H && H < 4 ) {
+        color.r = 0;
+        color.g = 255 * X;
+        color.b = 255 * C;
+    }
+    else if ( 4 <= H && H < 5 ) {
+        color.r = 255 * X;
+        color.g = 0;
+        color.b = 255 * C;
+    }
+    else if ( 5 <= H && H < 6 ) {
+        color.r = 255 * C;
+        color.g = 0;
+        color.b = 255 * X;
+    }
+    else {
+        return color;
+    }
+
+    float m = value - C;
+
+    color.r += m;
+    color.g += m;
+    color.b += m;
+
+    return color;
 }

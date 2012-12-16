@@ -108,7 +108,7 @@ private :
 ///
 /// sf::Clock is a lightweight class for measuring time.
 ///
-/// Its provides the most precise time that the underlying
+/// It provides the most precise time that the underlying
 /// OS can achieve (generally microseconds or nanoseconds).
 /// It also ensures monotonicity, which means that the returned
 /// time can never go backward, even if the system time is

@@ -67,16 +67,6 @@ public :
     float asSeconds() const;
 
     ////////////////////////////////////////////////////////////
-    /// \brief Return the time value as a number of milliseconds
-    ///
-    /// \return Time in milliseconds
-    ///
-    /// \see asSeconds, asMicroseconds
-    ///
-    ////////////////////////////////////////////////////////////
-    int32_t asMilliseconds() const;
-
-    ////////////////////////////////////////////////////////////
     /// \brief Return the time value as a number of microseconds
     ///
     /// \return Time in microseconds
@@ -93,8 +83,6 @@ public :
 
 private :
 
-    friend Time seconds(float);
-    friend Time milliseconds(int32_t);
     friend Time microseconds(int64_t);
 
     ////////////////////////////////////////////////////////////
@@ -118,32 +106,6 @@ private :
 
 ////////////////////////////////////////////////////////////
 /// \relates Time
-/// \brief Construct a time value from a number of seconds
-///
-/// \param amount Number of seconds
-///
-/// \return Time value constructed from the amount of seconds
-///
-/// \see milliseconds, microseconds
-///
-////////////////////////////////////////////////////////////
-Time seconds(float amount);
-
-////////////////////////////////////////////////////////////
-/// \relates Time
-/// \brief Construct a time value from a number of milliseconds
-///
-/// \param amount Number of milliseconds
-///
-/// \return Time value constructed from the amount of milliseconds
-///
-/// \see seconds, microseconds
-///
-////////////////////////////////////////////////////////////
-Time milliseconds(int32_t amount);
-
-////////////////////////////////////////////////////////////
-/// \relates Time
 /// \brief Construct a time value from a number of microseconds
 ///
 /// \param amount Number of microseconds
@@ -157,113 +119,6 @@ Time microseconds(int64_t amount);
 
 ////////////////////////////////////////////////////////////
 /// \relates Time
-/// \brief Overload of == operator to compare two time values
-///
-/// \param left  Left operand (a time)
-/// \param right Right operand (a time)
-///
-/// \return True if both time values are equal
-///
-////////////////////////////////////////////////////////////
-bool operator ==(Time left, Time right);
-
-////////////////////////////////////////////////////////////
-/// \relates Time
-/// \brief Overload of != operator to compare two time values
-///
-/// \param left  Left operand (a time)
-/// \param right Right operand (a time)
-///
-/// \return True if both time values are different
-///
-////////////////////////////////////////////////////////////
-bool operator !=(Time left, Time right);
-
-////////////////////////////////////////////////////////////
-/// \relates Time
-/// \brief Overload of < operator to compare two time values
-///
-/// \param left  Left operand (a time)
-/// \param right Right operand (a time)
-///
-/// \return True if \a left is lesser than \a right
-///
-////////////////////////////////////////////////////////////
-bool operator <(Time left, Time right);
-
-////////////////////////////////////////////////////////////
-/// \relates Time
-/// \brief Overload of > operator to compare two time values
-///
-/// \param left  Left operand (a time)
-/// \param right Right operand (a time)
-///
-/// \return True if \a left is greater than \a right
-///
-////////////////////////////////////////////////////////////
-bool operator >(Time left, Time right);
-
-////////////////////////////////////////////////////////////
-/// \relates Time
-/// \brief Overload of <= operator to compare two time values
-///
-/// \param left  Left operand (a time)
-/// \param right Right operand (a time)
-///
-/// \return True if \a left is lesser or equal than \a right
-///
-////////////////////////////////////////////////////////////
-bool operator <=(Time left, Time right);
-
-////////////////////////////////////////////////////////////
-/// \relates Time
-/// \brief Overload of >= operator to compare two time values
-///
-/// \param left  Left operand (a time)
-/// \param right Right operand (a time)
-///
-/// \return True if \a left is greater or equal than \a right
-///
-////////////////////////////////////////////////////////////
-bool operator >=(Time left, Time right);
-
-////////////////////////////////////////////////////////////
-/// \relates Time
-/// \brief Overload of unary - operator to negate a time value
-///
-/// \param right Right operand (a time)
-///
-/// \return Opposite of the time value
-///
-////////////////////////////////////////////////////////////
-Time operator -(Time right);
-
-////////////////////////////////////////////////////////////
-/// \relates Time
-/// \brief Overload of binary + operator to add two time values
-///
-/// \param left  Left operand (a time)
-/// \param right Right operand (a time)
-///
-/// \return Sum of the two times values
-///
-////////////////////////////////////////////////////////////
-Time operator +(Time left, Time right);
-
-////////////////////////////////////////////////////////////
-/// \relates Time
-/// \brief Overload of binary += operator to add/assign two time values
-///
-/// \param left  Left operand (a time)
-/// \param right Right operand (a time)
-///
-/// \return Sum of the two times values
-///
-////////////////////////////////////////////////////////////
-Time& operator +=(Time& left, Time right);
-
-////////////////////////////////////////////////////////////
-/// \relates Time
 /// \brief Overload of binary - operator to subtract two time values
 ///
 /// \param left  Left operand (a time)
@@ -273,138 +128,6 @@ Time& operator +=(Time& left, Time right);
 ///
 ////////////////////////////////////////////////////////////
 Time operator -(Time left, Time right);
-
-////////////////////////////////////////////////////////////
-/// \relates Time
-/// \brief Overload of binary -= operator to subtract/assign two time values
-///
-/// \param left  Left operand (a time)
-/// \param right Right operand (a time)
-///
-/// \return Difference of the two times values
-///
-////////////////////////////////////////////////////////////
-Time& operator -=(Time& left, Time right);
-
-////////////////////////////////////////////////////////////
-/// \relates Time
-/// \brief Overload of binary * operator to scale a time value
-///
-/// \param left  Left operand (a time)
-/// \param right Right operand (a number)
-///
-/// \return \a left multiplied by \a right
-///
-////////////////////////////////////////////////////////////
-Time operator *(Time left, float right);
-
-////////////////////////////////////////////////////////////
-/// \relates Time
-/// \brief Overload of binary * operator to scale a time value
-///
-/// \param left  Left operand (a time)
-/// \param right Right operand (a number)
-///
-/// \return \a left multiplied by \a right
-///
-////////////////////////////////////////////////////////////
-Time operator *(Time left, int64_t right);
-
-////////////////////////////////////////////////////////////
-/// \relates Time
-/// \brief Overload of binary * operator to scale a time value
-///
-/// \param left  Left operand (a number)
-/// \param right Right operand (a time)
-///
-/// \return \a left multiplied by \a right
-///
-////////////////////////////////////////////////////////////
-Time operator *(float left, Time right);
-
-////////////////////////////////////////////////////////////
-/// \relates Time
-/// \brief Overload of binary * operator to scale a time value
-///
-/// \param left  Left operand (a number)
-/// \param right Right operand (a time)
-///
-/// \return \a left multiplied by \a right
-///
-////////////////////////////////////////////////////////////
-Time operator *(int64_t left, Time right);
-
-////////////////////////////////////////////////////////////
-/// \relates Time
-/// \brief Overload of binary *= operator to scale/assign a time value
-///
-/// \param left  Left operand (a time)
-/// \param right Right operand (a number)
-///
-/// \return \a left multiplied by \a right
-///
-////////////////////////////////////////////////////////////
-Time& operator *=(Time& left, float right);
-
-////////////////////////////////////////////////////////////
-/// \relates Time
-/// \brief Overload of binary *= operator to scale/assign a time value
-///
-/// \param left  Left operand (a time)
-/// \param right Right operand (a number)
-///
-/// \return \a left multiplied by \a right
-///
-////////////////////////////////////////////////////////////
-Time& operator *=(Time& left, int64_t right);
-
-////////////////////////////////////////////////////////////
-/// \relates Time
-/// \brief Overload of binary / operator to scale a time value
-///
-/// \param left  Left operand (a time)
-/// \param right Right operand (a number)
-///
-/// \return \a left divided by \a right
-///
-////////////////////////////////////////////////////////////
-Time operator /(Time left, float right);
-
-////////////////////////////////////////////////////////////
-/// \relates Time
-/// \brief Overload of binary / operator to scale a time value
-///
-/// \param left  Left operand (a time)
-/// \param right Right operand (a number)
-///
-/// \return \a left divided by \a right
-///
-////////////////////////////////////////////////////////////
-Time operator /(Time left, int64_t right);
-
-////////////////////////////////////////////////////////////
-/// \relates Time
-/// \brief Overload of binary /= operator to scale/assign a time value
-///
-/// \param left  Left operand (a time)
-/// \param right Right operand (a number)
-///
-/// \return \a left divided by \a right
-///
-////////////////////////////////////////////////////////////
-Time& operator /=(Time& left, float right);
-
-////////////////////////////////////////////////////////////
-/// \relates Time
-/// \brief Overload of binary /= operator to scale/assign a time value
-///
-/// \param left  Left operand (a time)
-/// \param right Right operand (a number)
-///
-/// \return \a left divided by \a right
-///
-////////////////////////////////////////////////////////////
-Time& operator /=(Time& left, int64_t right);
 
 } // namespace sf
 
@@ -417,18 +140,12 @@ Time& operator /=(Time& left, int64_t right);
 /// \ingroup system
 ///
 /// sf::Time encapsulates a time value in a flexible way.
-/// It allows to define a time value either as a number of
-/// seconds, milliseconds or microseconds. It also works the
-/// other way round: you can read a time value as either
-/// a number of seconds, milliseconds or microseconds.
+/// It allows to define a time value as a number of
+/// microseconds. It also works the other way around: you can
+/// read a time value as either a number of seconds or
+/// microseconds.
 ///
-/// By using such a flexible interface, the API doesn't
-/// impose any fixed type or resolution for time values,
-/// and let the user choose its own favorite representation.
-///
-/// Time values support the usual mathematical operations:
-/// you can add or subtract two times, multiply or divide
-/// a time by a number, compare two times, etc.
+/// You can subtract two times
 ///
 /// Since they represent a time span and not an absolute time
 /// value, times can also be negative.
@@ -436,22 +153,10 @@ Time& operator /=(Time& left, int64_t right);
 /// Usage example:
 /// \code
 /// sf::Time t1 = sf::seconds(0.1f);
-/// Int32 milli = t1.asMilliseconds(); // 100
+/// Int32 micro = t1.asMicroseconds(); // 100000
 ///
-/// sf::Time t2 = sf::milliseconds(30);
-/// Int64 micro = t2.asMicroseconds(); // 30000
-///
-/// sf::Time t3 = sf::microseconds(-800000);
-/// float sec = t3.asSeconds(); // -0.8
-/// \endcode
-///
-/// \code
-/// void update(sf::Time elapsed)
-/// {
-///    position += speed * elapsed.asSeconds();
-/// }
-///
-/// update(sf::milliseconds(100));
+/// sf::Time t2 = sf::microseconds(-800000);
+/// float sec = t2.asSeconds(); // -0.8
 /// \endcode
 ///
 /// \see sf::Clock

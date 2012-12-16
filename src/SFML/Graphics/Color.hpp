@@ -69,19 +69,6 @@ public :
     Color(uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha = 255);
 
     ////////////////////////////////////////////////////////////
-    // Static member data
-    ////////////////////////////////////////////////////////////
-    static const Color Black;       ///< Black predefined color
-    static const Color White;       ///< White predefined color
-    static const Color Red;         ///< Red predefined color
-    static const Color Green;       ///< Green predefined color
-    static const Color Blue;        ///< Blue predefined color
-    static const Color Yellow;      ///< Yellow predefined color
-    static const Color Magenta;     ///< Magenta predefined color
-    static const Color Cyan;        ///< Cyan predefined color
-    static const Color Transparent; ///< Transparent (black) predefined color
-
-    ////////////////////////////////////////////////////////////
     // Member data
     ////////////////////////////////////////////////////////////
     uint8_t r; ///< Red component
@@ -89,34 +76,6 @@ public :
     uint8_t b; ///< Blue component
     uint8_t a; ///< Alpha (opacity) component
 };
-
-////////////////////////////////////////////////////////////
-/// \relates Color
-/// \brief Overload of the == operator
-///
-/// This operator compares two colors and check if they are equal.
-///
-/// \param left  Left operand
-/// \param right Right operand
-///
-/// \return True if colors are equal, false if they are different
-///
-////////////////////////////////////////////////////////////
-bool operator ==(const Color& left, const Color& right);
-
-////////////////////////////////////////////////////////////
-/// \relates Color
-/// \brief Overload of the != operator
-///
-/// This operator compares two colors and check if they are different.
-///
-/// \param left  Left operand
-/// \param right Right operand
-///
-/// \return True if colors are different, false if they are equal
-///
-////////////////////////////////////////////////////////////
-bool operator !=(const Color& left, const Color& right);
 
 } // namespace sf
 
@@ -149,18 +108,6 @@ bool operator !=(const Color& left, const Color& right);
 /// 255 will be fully opaque, while an alpha value of 0 will
 /// make a color fully transparent, whatever the value of the
 /// other components is.
-///
-/// The most common colors are already defined as static variables:
-/// \code
-/// sf::Color black       = sf::Color::Black;
-/// sf::Color white       = sf::Color::White;
-/// sf::Color red         = sf::Color::Red;
-/// sf::Color green       = sf::Color::Green;
-/// sf::Color blue        = sf::Color::Blue;
-/// sf::Color yellow      = sf::Color::Yellow;
-/// sf::Color magenta     = sf::Color::Magenta;
-/// sf::Color cyan        = sf::Color::Cyan;
-/// sf::Color transparent = sf::Color::Transparent;
 /// \endcode
 ///
 ////////////////////////////////////////////////////////////

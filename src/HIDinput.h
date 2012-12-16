@@ -1,12 +1,11 @@
 //=============================================================================
-//File Name: WinAPIWrapper.h
-//Description: Provides wrapper for common WinAPI algorithms called in this
-//             program
+//File Name: HIDinput.h
+//Description: Provides wrapper for emulating Human Interface Device commands
 //Author: Tyler Veness
 //=============================================================================
 
-#ifndef WINAPI_WRAPPER_H
-#define WINAPI_WRAPPER_H
+#ifndef HID_INPUT_H
+#define HID_INPUT_H
 
 #ifndef _WIN32_WINNT
 #define _WIN32_WINNT 0x0501
@@ -38,4 +37,4 @@ void rightClick( INPUT* input );
 }
 #endif
 
-#endif // WINAPI_WRAPPER_H
+#endif // HID_INPUT_H

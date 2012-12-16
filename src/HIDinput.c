@@ -1,11 +1,10 @@
 //=============================================================================
-//File Name: WinAPIWrapper.c
-//Description: Provides wrapper for common WinAPI algorithms called in this
-//             program
+//File Name: HIDinput.c
+//Description: Provides wrapper for emulating Human Interface Device commands
 //Author: Tyler Veness
 //=============================================================================
 
-#include "WinAPIWrapper.h"
+#include "HIDinput.h"
 
 void moveMouse( INPUT* input , DWORD dx , DWORD dy , DWORD dwFlags ) {
 	ZeroMemory( input , sizeof(INPUT) );
@@ -29,7 +28,7 @@ void leftClick( INPUT* input ) {
 	SendInput( 1 , input , sizeof(INPUT) );
 
 	// left mouse button up
-	ZeroMemory( &input , sizeof(INPUT) );
+	ZeroMemory( input , sizeof(INPUT) );
 	input->type = INPUT_MOUSE;
 	input->mi.dwFlags = MOUSEEVENTF_LEFTUP;
 	SendInput( 1 , input , sizeof(INPUT) );
@@ -43,7 +42,7 @@ void rightClick( INPUT* input ) {
     SendInput( 1 , input , sizeof(INPUT) );
 
     // right mouse button up
-    ZeroMemory( &input , sizeof(INPUT) );
+    ZeroMemory( input , sizeof(INPUT) );
     input->type = INPUT_MOUSE;
     input->mi.dwFlags = MOUSEEVENTF_RIGHTUP;
     SendInput( 1 , input , sizeof(INPUT) );

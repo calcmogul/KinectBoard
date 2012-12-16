@@ -84,4 +84,4 @@ private :
 } // namespace sf
 
 
-#endif // SFML_MUTEXIMPL_HPP
+#endif // SFML_MUTEX_HPP

@@ -124,7 +124,7 @@ public :
 /// sf::ThreadLocalPtr is a type-safe wrapper for storing
 /// pointers to thread-local variables. A thread-local
 /// variable holds a different value for each different
-/// thread, unlike normal variable that are shared.
+/// thread, unlike normal variables that are shared.
 ///
 /// Its usage is completely transparent, so that it is similar
 /// to manipulating the raw pointer directly (like any smart pointer).
@@ -160,6 +160,6 @@ public :
 /// \endcode
 ///
 /// ThreadLocalPtr is designed for internal use; however you
-/// can use it if you feel like it fits well your implementation.
+/// can use it if you feel like it fits your implementation well.
 ///
 ////////////////////////////////////////////////////////////

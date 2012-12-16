@@ -66,7 +66,7 @@ public :
     ///
     /// The \a pixel array is assumed to contain 32-bits RGBA pixels,
     /// and have the given \a width and \a height. If not, this is
-    /// an undefined behaviour.
+    /// an undefined behavior.
     /// If \a pixels is null, an empty image is created.
     ///
     /// \param width  Width of the image
@@ -133,7 +133,7 @@ public :
     ///
     /// This function doesn't check the validity of the pixel
     /// coordinates, using out-of-range values will result in
-    /// an undefined behaviour.
+    /// an undefined behavior.
     ///
     /// \param x     X coordinate of pixel to change
     /// \param y     Y coordinate of pixel to change
