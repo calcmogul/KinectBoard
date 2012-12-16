@@ -7,6 +7,8 @@
 #define _WIN32_WINNT 0x0501
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <shellapi.h>
+
 #include <cstdlib>
 #include <cstring>
 #include <list>
@@ -283,6 +285,19 @@ LRESULT CALLBACK MainProc( HWND handle , UINT message , WPARAM wParam , LPARAM l
                 gProjectorKinect.registerVideoWindow( gDisplayWindow );
                 gProjectorKinect.unregisterDepthWindow();
 
+                /* ===== Change button text to correctly represent status of stream displayed ===== */
+                char* windowText = static_cast<char*>(std::malloc( 16 ) );
+                if ( gProjectorKinect.isVideoStreamRunning() ) {
+                    // Change Start/Stop button text to "Stop"
+                    EnumChildWindows( handle , StartStreamChildCbk , (LPARAM)windowText );
+                }
+                else {
+                    // Change Start/Stop button text to "Start"
+                    EnumChildWindows( handle , StopStreamChildCbk , (LPARAM)windowText );
+                }
+                std::free( windowText );
+                /* ================================================================================ */
+
                 break;
             }
 
@@ -295,6 +310,19 @@ LRESULT CALLBACK MainProc( HWND handle , UINT message , WPARAM wParam , LPARAM l
                 gProjectorKinect.unregisterVideoWindow();
                 gProjectorKinect.registerDepthWindow( gDisplayWindow );
 
+                /* ===== Change button text to correctly represent status of stream displayed ===== */
+                char* windowText = static_cast<char*>(std::malloc( 16 ) );
+                if ( gProjectorKinect.isDepthStreamRunning() ) {
+                    // Change Start/Stop button text to "Stop"
+                    EnumChildWindows( handle , StartStreamChildCbk , (LPARAM)windowText );
+                }
+                else {
+                    // Change Start/Stop button text to "Start"
+                    EnumChildWindows( handle , StopStreamChildCbk , (LPARAM)windowText );
+                }
+                std::free( windowText );
+                /* ================================================================================ */
+
                 break;
             }
 
@@ -305,7 +333,19 @@ LRESULT CALLBACK MainProc( HWND handle , UINT message , WPARAM wParam , LPARAM l
             }
 
             case IDM_HELP: {
-                // TODO: Create help dialog
+                HINSTANCE status = ShellExecute( handle,
+                        "open",
+                        "Help.html",
+                        NULL,
+                        NULL,
+                        SW_SHOWNORMAL
+                        );
+
+                if ( reinterpret_cast<int>(status) <= 32 ) {
+                    std::string errorMsg = "Could not open help file.\nError: ";
+                    MessageBox( handle , (errorMsg + numberToString(status)).c_str() , "Error" , MB_ICONERROR | MB_OK );
+                }
+                // TODO: Finish writing HTML help page
 
                 break;
             }
