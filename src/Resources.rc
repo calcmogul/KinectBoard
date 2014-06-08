@@ -4,6 +4,9 @@
 kinect1-ON ICON "OpenKinectON.ico"
 kinect2-OFF ICON "OpenKinectOFF.ico"
 
+////////// Process Manifest
+//CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "KinectBoard.manifest"
+
 ////////// Menu
 mainMenu MENU
 BEGIN

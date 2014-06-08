@@ -9,6 +9,9 @@
 #include <windows.h>
 #include <shellapi.h>
 
+#define _WIN32_IE 0x0400
+#include <commctrl.h>
+
 #include <cstdlib>
 #include <cstring>
 #include <list>
@@ -67,6 +70,13 @@ BOOL CALLBACK StopStreamChildCbk(
 
 INT WINAPI WinMain( HINSTANCE Instance , HINSTANCE , LPSTR , INT ) {
     gInstance = Instance;
+
+    INITCOMMONCONTROLSEX icc;
+
+    // Initialise common controls.
+    icc.dwSize = sizeof(icc);
+    icc.dwICC = ICC_WIN95_CLASSES;
+    InitCommonControlsEx(&icc);
 
     // Initialize menu bar and set the check boxes' initial state
     gMainMenu = LoadMenu( Instance , "mainMenu" );
@@ -264,14 +274,14 @@ LRESULT CALLBACK MainProc( HWND handle , UINT message , WPARAM wParam , LPARAM l
 
             case IDM_STARTTRACK: {
                 gProjectorKinect.setMouseTracking( true );
-                MessageBox( handle , "Mouse tracking has been enabled." , "Mouse Tracking" , MB_ICONINFORMATION | MB_OK );
+                MessageBox( handle , "Mouse tracking has been enabled" , "Mouse Tracking" , MB_ICONINFORMATION | MB_OK );
 
                 break;
             }
 
             case IDM_STOPTRACK: {
                 gProjectorKinect.setMouseTracking( false );
-                MessageBox( handle , "Mouse tracking has been disabled." , "Mouse Tracking" , MB_ICONINFORMATION | MB_OK );
+                MessageBox( handle , "Mouse tracking has been disabled" , "Mouse Tracking" , MB_ICONINFORMATION | MB_OK );
 
                 break;
             }
@@ -335,14 +345,14 @@ LRESULT CALLBACK MainProc( HWND handle , UINT message , WPARAM wParam , LPARAM l
             case IDM_HELP: {
                 HINSTANCE status = ShellExecute( handle,
                         "open",
-                        "Help.html",
+                        "help.html",
                         NULL,
-                        NULL,
+                        "help",
                         SW_SHOWNORMAL
                         );
 
                 if ( reinterpret_cast<int>(status) <= 32 ) {
-                    std::string errorMsg = "Could not open help file.\nError: ";
+                    std::string errorMsg = "Could not open help file\nError: ";
                     MessageBox( handle , (errorMsg + numberToString(status)).c_str() , "Error" , MB_ICONERROR | MB_OK );
                 }
                 // TODO: Finish writing HTML help page
