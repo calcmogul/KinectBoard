@@ -45,6 +45,7 @@ struct quadsort_t {
 struct quadsort_t {
     CvPoint point;
     int quadrant;
+    int angle;
 };
 
 void plist_free(struct plist_t *plist_in);
