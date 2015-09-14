@@ -4,10 +4,6 @@
 #ifndef _PARSE_H
 #define _PARSE_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <opencv2/imgproc/imgproc_c.h>
 #include <stdint.h>
 
@@ -74,9 +70,5 @@ int findImageLocation(IplImage *image, struct plist_t **plist_out,
 IplImage *
 RGBtoIplImage(uint8_t *rgbimage, int width, int height);
 void saveRGBimage(IplImage *image, char *path);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

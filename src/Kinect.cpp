@@ -429,14 +429,15 @@ void Kinect::newVideoFrame( struct nstream_t* streamObject , void* classObject )
     kinectPtr->m_vidImageMutex.unlock();
 
     // Limit video frame rate
-    if ( 1.f / kinectPtr->m_vidFrameTime.getElapsedTime().asSeconds() < kinectPtr->m_vidFrameRate ) {
+    using namespace std::chrono;
+    if ( 1.f / duration_cast<seconds>(system_clock::now() - kinectPtr->m_lastVidFrameTime).count() < kinectPtr->m_vidFrameRate ) {
         kinectPtr->m_vidWindowMutex.lock();
         if ( kinectPtr->m_vidWindow != NULL ) {
             kinectPtr->displayVideo( kinectPtr->m_vidWindow , 0 , 0 );
         }
         kinectPtr->m_vidWindowMutex.unlock();
 
-        kinectPtr->m_vidFrameTime.restart();
+        kinectPtr->m_lastVidFrameTime = system_clock::now();
     }
 }
 
@@ -485,18 +486,19 @@ void Kinect::newDepthFrame( struct nstream_t* streamObject , void* classObject )
     kinectPtr->m_depthImageMutex.unlock();
 
     // Limit depth image stream frame rate
-    if ( 1.f / kinectPtr->m_depthFrameTime.getElapsedTime().asSeconds() < kinectPtr->m_depthFrameRate ) {
+    using namespace std::chrono;
+    if ( 1.f / duration_cast<seconds>(system_clock::now() - kinectPtr->m_lastDepthFrameTime).count() < kinectPtr->m_depthFrameRate ) {
         kinectPtr->m_depthWindowMutex.lock();
         if ( kinectPtr->m_depthWindow != NULL ) {
             kinectPtr->displayDepth( kinectPtr->m_depthWindow , 0 , 0 );
         }
         kinectPtr->m_depthWindowMutex.unlock();
 
-        kinectPtr->m_depthFrameTime.restart();
+        kinectPtr->m_lastDepthFrameTime = system_clock::now();
     }
 }
 
-void Kinect::display( HWND window , int x , int y , HBITMAP image , sf::Mutex& displayMutex , HDC deviceContext ) {
+void Kinect::display( HWND window , int x , int y , HBITMAP image , std::mutex& displayMutex , HDC deviceContext ) {
     displayMutex.lock();
 
     if ( image != NULL ) {

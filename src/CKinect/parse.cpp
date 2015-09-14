@@ -451,7 +451,7 @@ findScreenBox(
         }
 
         /* extract the points */
-        quad = malloc(sizeof(struct quad_t));
+        quad = static_cast<struct quad_t*>(malloc(sizeof(struct quad_t)));
         for(i = 0; i < 4; i++){
             quad->point[i] = *CV_GET_SEQ_ELEM(CvPoint, ctr, i);
         }
@@ -492,7 +492,7 @@ plist_mke(CvPoint data, struct plist_t *plist_in)
 {
     struct plist_t *plist;
 
-    plist = malloc(sizeof(struct plist_t));
+    plist = static_cast<plist_t*>(malloc(sizeof(struct plist_t)));
     plist->next = NULL;
     if(plist_in != NULL)
         plist_in->next = plist;

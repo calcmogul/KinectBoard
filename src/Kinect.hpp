@@ -21,12 +21,11 @@
 #include "CKinect/kinect.h"
 #include "ImageVars.hpp"
 #include "Processing.hpp"
-#include <vector>
+#include <chrono>
+#include <mutex>
 #include <string>
-#include <opencv2/core/types_c.h>
-
-#include "SFML/System/Clock.hpp"
-#include "SFML/System/Mutex.hpp"
+#include <vector>
+#include <opencv2/core/core_c.h>
 
 #define WM_KINECT_VIDEOSTART  (WM_APP + 0x0001)
 #define WM_KINECT_VIDEOSTOP   (WM_APP + 0x0002)
@@ -133,14 +132,14 @@ public:
     void setScreenRect( RECT screenRect );
 
 protected:
-    sf::Mutex m_vidImageMutex;
-    sf::Mutex m_vidDisplayMutex;
+    std::mutex m_vidImageMutex;
+    std::mutex m_vidDisplayMutex;
 
-    sf::Mutex m_depthImageMutex;
-    sf::Mutex m_depthDisplayMutex;
+    std::mutex m_depthImageMutex;
+    std::mutex m_depthDisplayMutex;
 
-    sf::Mutex m_vidWindowMutex;
-    sf::Mutex m_depthWindowMutex;
+    std::mutex m_vidWindowMutex;
+    std::mutex m_depthWindowMutex;
 
     CvSize m_imageSize;
 
@@ -186,13 +185,13 @@ private:
     INPUT m_input;
 
     // Used to control maximum frame rate of each image stream
-    sf::Clock m_vidFrameTime;
-    sf::Clock m_depthFrameTime;
+    std::chrono::time_point<std::chrono::system_clock> m_lastVidFrameTime;
+    std::chrono::time_point<std::chrono::system_clock> m_lastDepthFrameTime;
     unsigned int m_vidFrameRate;
     unsigned int m_depthFrameRate;
 
     // Displays the given image in the given window at the given coordinates
-    void display( HWND window , int x , int y , HBITMAP image , sf::Mutex& displayMutex , HDC deviceContext );
+    void display( HWND window , int x , int y , HBITMAP image , std::mutex& displayMutex , HDC deviceContext );
 
     static char* RGBtoBITMAPdata( const char* imageData , unsigned int width , unsigned int height );
 

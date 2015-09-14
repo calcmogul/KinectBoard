@@ -40,7 +40,7 @@ struct nstream_t *nstream_init(int width, int height, int depth,
     int error;
     struct nstream_t *nstm;
 
-    nstm = malloc(sizeof(struct nstream_t));
+    nstm = static_cast<struct nstream_t*>(malloc(sizeof(struct nstream_t)));
     memset(nstm, 0x00, sizeof(struct nstream_t));
 
     /* We do this first because it's the only failure condition */
@@ -56,8 +56,8 @@ struct nstream_t *nstream_init(int width, int height, int depth,
 
     nstm->bufsize = nstm->imgwidth * nstm->imgheight * nstm->imgdepth;
 
-    nstm->buf0 = malloc(nstm->bufsize);
-    nstm->buf1 = malloc(nstm->bufsize);
+    nstm->buf0 = static_cast<char*>(malloc(nstm->bufsize));
+    nstm->buf1 = static_cast<char*>(malloc(nstm->bufsize));
 
     memset(nstm->buf0, 0x00, nstm->bufsize);
     memset(nstm->buf1, 0x00, nstm->bufsize);

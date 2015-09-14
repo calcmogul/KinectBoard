@@ -6,7 +6,7 @@
 
 #include "kinect.h"
 #include "nstream.h"
-#include <libfreenect.h>
+#include <libfreenect/libfreenect.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <pthread.h>
@@ -122,7 +122,7 @@ void knt_depth_cb(freenect_device * dev, void *rgb, uint32_t timestamp)
  */
 int knt_startstream(struct nstream_t *stream)
 {
-    struct knt_inst_t *inst = stream->ih;
+    struct knt_inst_t *inst = static_cast<knt_inst_t*>(stream->ih);
 
     /* You can't start a stream that's already started */
     if (stream->state != NSTREAM_DOWN)
@@ -162,7 +162,7 @@ int knt_startstream(struct nstream_t *stream)
  */
 int knt_rgb_stopstream(struct nstream_t *stream)
 {
-    struct knt_inst_t *inst = stream->ih;
+    struct knt_inst_t *inst = static_cast<knt_inst_t*>(stream->ih);
 
     if (stream->state != NSTREAM_UP)
         return 1;
@@ -190,7 +190,7 @@ int knt_rgb_stopstream(struct nstream_t *stream)
  */
 int knt_depth_stopstream(struct nstream_t *stream)
 {
-    struct knt_inst_t *inst = stream->ih;
+    struct knt_inst_t *inst = static_cast<knt_inst_t*>(stream->ih);
 
     if (stream->state != NSTREAM_UP)
         return 1;
@@ -232,7 +232,7 @@ void knt_threadmain_abort(struct knt_inst_t *inst)
  */
 void *knt_threadmain(void *in)
 {
-    struct knt_inst_t *inst = in;
+    struct knt_inst_t *inst = static_cast<knt_inst_t*>(in);
     int error;
     int ndevs;
     freenect_context *f_ctx;
@@ -384,7 +384,7 @@ struct knt_inst_t *knt_init()
     struct knt_inst_t *inst;
     int error;
 
-    inst = malloc(sizeof(struct knt_inst_t));
+    inst = static_cast<knt_inst_t*>(malloc(sizeof(struct knt_inst_t)));
     memset(inst, 0x00, sizeof(struct knt_inst_t));
 
     /* initialize the thread running mutex */
