@@ -3,5 +3,6 @@
 *.dll
 *.o
 *.d
+*.res
 *.exe
 Makefile
