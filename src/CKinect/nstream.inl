@@ -44,6 +44,5 @@ nstream<T>::nstream(int width, int height, int depth, int (T::*startstream)(nstr
 
     this->startstream = startstream;
     this->stopstream = stopstream;
-
     this->ih = ih;
 }

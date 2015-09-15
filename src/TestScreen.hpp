@@ -12,25 +12,22 @@
 #include <windows.h>
 
 #include "Processing.hpp"
+#include "Color.hpp"
 
-typedef struct Color {
-    unsigned char r;
-    unsigned char g;
-    unsigned char b;
-} Color;
 
 class TestScreen : public Processing {
 public:
-    TestScreen( HINSTANCE instance = NULL , bool createNow = false );
+    TestScreen(HINSTANCE instance = nullptr, bool createNow = false);
 
     virtual ~TestScreen();
 
     // Create HWND
-    void create( const RECT windowPos = { 0 , 0 , GetSystemMetrics(SM_CXSCREEN) , GetSystemMetrics(SM_CYSCREEN) } );
+    void create(const RECT windowPos = {0, 0, GetSystemMetrics(SM_CXSCREEN),
+                                        GetSystemMetrics(SM_CYSCREEN)});
 
-    void setPosition( const RECT windowPos );
+    void setPosition(const RECT windowPos);
 
-    void setColor( Processing::ProcColor borderColor );
+    void setColor(Processing::ProcColor borderColor);
 
     // Displays test pattern with previously set border color
     void display();
@@ -49,15 +46,15 @@ private:
     static HBRUSH m_colorBrush;
     static bool m_classInitialized;
 
-    static LRESULT CALLBACK OnEvent( HWND , UINT , WPARAM , LPARAM );
+    static LRESULT CALLBACK OnEvent(HWND, UINT, WPARAM, LPARAM);
 
     void eventLoop();
 
-    HWND m_window;
-    HCURSOR m_prevCursor;
+    HWND m_window = nullptr;
+    HCURSOR m_prevCursor = nullptr;
 
-    Color m_outlineColor;
-    ProcColor m_borderColor;
+    Color m_outlineColor{255, 0, 0};
+    ProcColor m_borderColor = Red;
 };
 
 #endif // TEST_SCREEN_HPP

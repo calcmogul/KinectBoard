@@ -22,45 +22,41 @@ public:
 
     std::mutex mutex;
 
-    /* the current state of the stream, either NSTREAM_UP or NSTREAM_DOWN */
+    // The current state of the stream, either NSTREAM_UP or NSTREAM_DOWN
     std::atomic<int> state{NSTREAM_DOWN};
 
-    /* The height and width in pixels */
+    // The height and width in pixels
     int imgwidth;
     int imgheight;
-    int imgdepth;               /* in bytes per pixel */
+    int imgdepth; // In bytes per pixel
 
-    /* The size of the buffers */
+    // The size of the buffers
     unsigned int bufsize;
 
-    /* The two buffers to swap */
+    // The two buffers to swap
     std::unique_ptr<uint8_t[]> buf0;
     std::unique_ptr<uint8_t[]> buf1;
 
-    /* The current swapped-in buffer */
-    uint8_t* buf;
+    // The current swapped-in buffer
+    uint8_t* buf = nullptr;
 
-    /* Callbacks */
-    void *callbackarg;
+    void* callbackarg = nullptr;
 
-    /* stream starting */
-    void (*streamstarting)(nstream<T>&, void*);
-    /* stream stopping */
-    void (*streamstopping)(nstream<T>&, void*);
-    /* new frame in buffer */
-    void (*newframe)(nstream<T>&, void*);
+    void (*streamstarting)(nstream<T>&, void*) = nullptr;
+    void (*streamstopping)(nstream<T>&, void*) = nullptr;
+    // New frame in buffer
+    void (*newframe)(nstream<T>&, void*) = nullptr;
 
-    /* Calls */
-    /* start stream */
-    int (T::*startstream)(nstream<T>&);
-    /* stop stream */
-    int (T::*stopstream)();
+    // Callbacks
+    int (T::*startStream)(nstream<T>&);
+    int (T::*stopStream)();
 
     /* Handle for internal use (implemented differently in different
-       applications */
+     * applications
+     */
     T* ih;
 
-    /* Timestamp in seconds since the epoch */
+    // Timestamp in seconds since the epoch
     long timestamp = 0;
 };
 

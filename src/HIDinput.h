@@ -17,21 +17,18 @@
 extern "C" {
 #endif
 
-/* All INPUT structures are zeroed upon entry to each function.
- * The parameters passed to the function determine what the zeroed struct will then contain.
+/* All INPUT structures are zeroed upon entry to each function. The parameters
+ * passed to the function determine what the zeroed struct will then contain.
  */
 
-void moveMouse( INPUT* input ,
-        DWORD dx ,
-        DWORD dy ,
-        DWORD dwFlags // put extra flags here; use either MOUSEEVENTF_MOVE or MOUSEEVENTF_ABSOLUTE
-        );
+// Use either MOUSEEVENTF_MOVE or MOUSEEVENTF_ABSOLUTE for dwFlags
+void moveMouse(INPUT* input, DWORD dx, DWORD dy, DWORD dwFlags);
 
 // Sends left click and release to event queue
-void leftClick( INPUT* input );
+void leftClick(INPUT* input);
 
 // Sends right click and release to event queue
-void rightClick( INPUT* input );
+void rightClick(INPUT* input);
 
 #ifdef __cplusplus
 }

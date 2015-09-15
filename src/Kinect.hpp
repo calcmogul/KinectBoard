@@ -63,16 +63,16 @@ public:
     bool isDepthStreamRunning();
 
     // Set max frame rate of video stream
-    void setVideoStreamFPS( unsigned int fps );
+    void setVideoStreamFPS(unsigned int fps);
 
     // Set max frame rate of depth image stream
-    void setDepthStreamFPS( unsigned int fps );
+    void setDepthStreamFPS(unsigned int fps);
 
     // Set window to which to send Kinect video stream messages
-    void registerVideoWindow( HWND window );
+    void registerVideoWindow(HWND window);
 
     // Set window to which to send Kinect depth stream messages
-    void registerDepthWindow( HWND window );
+    void registerDepthWindow(HWND window);
 
     // Stop Kinect video stream from displaying on the registered window
     void unregisterVideoWindow();

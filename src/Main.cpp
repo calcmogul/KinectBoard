@@ -669,10 +669,8 @@ BOOL CALLBACK AboutCbk(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
     return FALSE;
 }
 
-BOOL CALLBACK MonitorEnumProc(HMONITOR hMonitor,
-                              HDC hdcMonitor,
-                              LPRECT lprcMonitor,
-                              LPARAM dwData) {
+BOOL CALLBACK MonitorEnumProc(HMONITOR hMonitor, HDC hdcMonitor,
+                              LPRECT lprcMonitor, LPARAM dwData) {
     auto& monitors = *reinterpret_cast<std::list<MonitorIndex>*>(dwData);
     monitors.push_back({{lprcMonitor->left, lprcMonitor->top,
                          lprcMonitor->right, lprcMonitor->bottom}, nullptr});

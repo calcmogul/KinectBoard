@@ -13,12 +13,13 @@
 #include "CKinect/parse.h"
 #include "Kinect.hpp"
 #include "HIDinput.h"
-#include "SFML/Graphics/Color.hpp"
+#include "Color.hpp"
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
-sf::Color HSVtoRGB(unsigned short hue, unsigned short saturation, unsigned short value);
+Color HSVtoRGB(unsigned short hue, unsigned short saturation,
+               unsigned short value);
 
 Kinect::Kinect() {
     rgb.newframe = newVideoFrame;
@@ -386,7 +387,7 @@ void Kinect::newDepthFrame(nstream<Kinect>& streamObject, void* classObject) {
 
         depth = Kinect::rawDepthToMeters(depthVal);
 
-        sf::Color color = HSVtoRGB(360 * depth / 5.f, 100, 100);
+        Color color = HSVtoRGB(360 * depth / 5.f, 100, 100);
 
         // Assign values from 0 to 5 meters with a shade from black to white
         kntPtr->m_cvDepthImage->imageData[4 * index + 0] = color.b;
@@ -502,13 +503,14 @@ double Kinect::rawDepthToMeters(unsigned short depthValue) {
     return 0.0;
 }
 
-sf::Color HSVtoRGB( unsigned short hue , unsigned short saturation , unsigned short value ) {
+Color HSVtoRGB(unsigned short hue, unsigned short saturation,
+               unsigned short value) {
     /* H is [0,360]
      * S_HSV is [0,1]
      * V is [0,1]
      */
 
-    sf::Color color(0, 0, 0);
+    Color color{0, 0, 0};
     float C = value / 100 * saturation / 100;
     float H = hue / 60;
     float X = C * (1 - abs(static_cast<int>(floor(H)) % 2 - 1));
