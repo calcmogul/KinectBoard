@@ -103,10 +103,10 @@ public:
     void displayDepth(HWND window, int x, int y, HDC deviceContext = nullptr);
 
     // Saves most recently received RGB image to file
-    bool saveVideo(const std::string& fileName) const;
+    bool saveVideo(const std::string& fileName);
 
     // Save most recently received depth image to file
-    bool saveDepth(const std::string& fileName) const;
+    bool saveDepth(const std::string& fileName);
 
     // Stores current image as calibration image containing the given color
     void setCalibImage(ProcColor colorWanted);

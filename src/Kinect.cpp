@@ -13,7 +13,10 @@
 #include "CKinect/parse.h"
 #include "Kinect.hpp"
 #include "HIDinput.h"
-#include "SFML/Graphics/Image.hpp"
+#include "SFML/Graphics/Color.hpp"
+
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
 sf::Color HSVtoRGB(unsigned short hue, unsigned short saturation, unsigned short value);
 
@@ -196,39 +199,14 @@ void Kinect::displayDepth(HWND window, int x, int y, HDC deviceContext) {
     display(window, x, y, m_depthImage, m_depthDisplayMutex, deviceContext);
 }
 
-bool Kinect::saveVideo( const std::string& fileName ) const {
-    unsigned char imageData[ImageVars::width * ImageVars::height * 4];
-
-    // Copy OpenCV BGR image to RGB array
-    for (unsigned int startI = 0, endI = 0; endI <
-         ImageVars::width * ImageVars::height * 4; startI += 3, endI += 4) {
-        imageData[endI+0] = m_vidBuffer[startI + 0];
-        imageData[endI+1] = m_vidBuffer[startI + 1];
-        imageData[endI+2] = m_vidBuffer[startI + 2];
-        imageData[endI+3] = 255;
-    }
-
-    sf::Image imageBuffer;
-    imageBuffer.create(ImageVars::width, ImageVars::height, imageData);
-
-    return imageBuffer.saveToFile( fileName );
+bool Kinect::saveVideo(const std::string& fileName) {
+    cv::Mat img(ImageVars::height, ImageVars::width, CV_8UC(3), &m_vidBuffer[0]);
+    return cv::imwrite(fileName, img);
 }
 
-bool Kinect::saveDepth( const std::string& fileName ) const {
-    unsigned char imageData[ImageVars::width * ImageVars::height * 4];
-
-    // Copy OpenCV BGR image to RGB array
-    for (unsigned int i = 0; i < ImageVars::width * ImageVars::height * 4; i += 4) {
-        imageData[i+0] = m_cvDepthImage->imageData[i+2];
-        imageData[i+1] = m_cvDepthImage->imageData[i+1];
-        imageData[i+2] = m_cvDepthImage->imageData[i+0];
-        imageData[i+3] = 255;
-    }
-
-    sf::Image imageBuffer;
-    imageBuffer.create(ImageVars::width, ImageVars::height, imageData);
-
-    return imageBuffer.saveToFile(fileName);
+bool Kinect::saveDepth(const std::string& fileName) {
+    cv::Mat img(ImageVars::height, ImageVars::width, CV_8UC(3), m_cvDepthImage);
+    return cv::imwrite(fileName, img);
 }
 
 void Kinect::setCalibImage(Processing::ProcColor colorWanted) {
