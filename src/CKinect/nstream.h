@@ -1,22 +1,29 @@
 #ifndef _NSTREAM_H
 #define _NSTREAM_H
 
-#include <pthread.h>
+#include <memory>
+#include <mutex>
+#include <cstdint>
 
 #define NSTREAM_DOWN 0
 #define NSTREAM_UP 1
 #define NSTREAM_STARTING 2
 #define NSTREAM_STOPPING 3
 
-#define NSSFPTR(n) int (*n)(struct nstream_t *)
+template <class T>
+class nstream;
 
-struct nstream_t;
-struct nstream_t {
-    /* mutex */
-    pthread_mutex_t mutex;
+template <class T>
+class nstream {
+public:
+    nstream(int width, int height, int depth, int (T::*startstream)(nstream<T>&),
+                     int (T::*stopstream)(), T* ih);
+    virtual ~nstream() = default;
+
+    std::mutex mutex;
 
     /* the current state of the stream, either NSTREAM_UP or NSTREAM_DOWN */
-    int state;
+    int state = NSTREAM_DOWN;
 
     /* The height and width in pixels */
     int imgwidth;
@@ -27,40 +34,36 @@ struct nstream_t {
     unsigned int bufsize;
 
     /* The two buffers to swap */
-    char *buf0;
-    char *buf1;
+    std::unique_ptr<uint8_t[]> buf0;
+    std::unique_ptr<uint8_t[]> buf1;
 
     /* The current swapped-in buffer */
-    char *buf;
+    uint8_t* buf;
 
     /* Callbacks */
     void *callbackarg;
 
     /* stream starting */
-    void (*streamstarting) (struct nstream_t *, void *);
+    void (*streamstarting)(nstream<T>&, void*);
     /* stream stopping */
-    void (*streamstopping) (struct nstream_t *, void *);
+    void (*streamstopping)(nstream<T>&, void*);
     /* new frame in buffer */
-    void (*newframe) (struct nstream_t *, void *);
+    void (*newframe)(nstream<T>&, void*);
 
     /* Calls */
     /* start stream */
-    int (*startstream) (struct nstream_t *);
+    int (T::*startstream)(nstream<T>&);
     /* stop stream */
-    int (*stopstream) (struct nstream_t *);
+    int (T::*stopstream)();
 
     /* Handle for internal use (implemented differently in different
        applications */
-    void *ih;
+    T* ih;
 
     /* Timestamp in seconds since the epoch */
-    long timestamp;
+    long timestamp = 0;
 };
 
-struct nstream_t *nstream_init(int width, int height, int depth,
-                               NSSFPTR(startstream), NSSFPTR(stopstream),
-                               void *ih);
-
-void nstream_destroy(struct nstream_t *nstm);
+#include "nstream.inl"
 
 #endif

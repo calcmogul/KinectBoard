@@ -3,27 +3,33 @@
 
 #include "nstream.h"
 #include <libfreenect/libfreenect.h>
-#include <pthread.h>
 
-struct knt_inst_t {
-    struct nstream_t *rgb;
-    struct nstream_t *depth;
+#include <atomic>
+#include <condition_variable>
+#include <mutex>
+#include <thread>
 
-    pthread_t thread;
+class knt;
 
-    int threadrunning;
-    pthread_mutex_t threadrunning_mutex;
-    pthread_cond_t threadcond;
+class knt {
+public:
+    virtual ~knt();
+
+    nstream<knt> rgb{640, 480, 3, &knt::startstream, &knt::rgb_stopstream, this};
+    nstream<knt> depth{640, 480, 2, &knt::startstream, &knt::depth_stopstream, this};
+
+    std::thread thread;
+
+    std::atomic<bool> threadrunning{false};
+    std::mutex threadrunning_mutex;
+    std::condition_variable threadcond;
+
+    static void rgb_cb(freenect_device* dev, void* rgbBuf, uint32_t timestamp);
+    static void depth_cb(freenect_device* dev, void* depthBuf, uint32_t timestamp);
+    int startstream(nstream<knt>& stream);
+    int rgb_stopstream();
+    int depth_stopstream();
+    void threadmain();
 };
-
-void knt_rgb_cb(freenect_device * dev, void *rgb, uint32_t timestamp);
-void knt_depth_cb(freenect_device * dev, void *rgb, uint32_t timestamp);
-int knt_startstream(struct nstream_t *stream);
-int knt_rgb_stopstream(struct nstream_t *stream);
-int knt_depth_stopstream(struct nstream_t *stream);
-void knt_threadmain_abort(struct knt_inst_t *inst);
-void *knt_threadmain(void *in);
-struct knt_inst_t *knt_init();
-void knt_destroy(struct knt_inst_t *inst);
 
 #endif

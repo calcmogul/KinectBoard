@@ -1,6 +1,6 @@
 /* Functions for idenfiying the screen and pointer in
    images captured by the Micrsoft Kinect. */
-  
+
 #include <opencv2/imgproc/imgproc_c.h>
 #include <opencv2/highgui/highgui_c.h>
 #include <stdio.h>
@@ -8,21 +8,6 @@
 #include <string.h>
 #include <stdint.h>
 #include "parse.h"
-
-/* Frees the memory of all the elements in a plist_t linked list */
-void
-plist_free(struct plist_t *plist_in)
-{
-    struct plist_t *plist;
-    struct plist_t *plist_next;
-
-    for(plist = plist_in; plist != NULL; plist = plist_next){
-        plist_next = plist->next;
-        free(plist);
-    }
-
-    return;
-}
 
 /* Determines the quadrant point is in, if the origin is in the center
    of the quadrilateral specified by quad. This is used by the sortquad
@@ -33,7 +18,7 @@ quad_getquad(struct quad_t *quad, CvPoint point)
     int mpx, mpy;
     int px, py;
 
-    if(quad == NULL)
+    if(quad == nullptr)
         return 1;
 
     /* get the point in the middle of the quadrilateral by
@@ -80,11 +65,10 @@ quad_getquad(struct quad_t *quad, CvPoint point)
     if(px > 0 && py < 0){
         return 3;
     }
-    
+
     return 0;
 }
 
-#if 1
 /* The internal sorting function used by qsort(3) as used by
    sortquad() */
 int
@@ -119,117 +103,6 @@ sortquad(struct quad_t *quad_in)
     return;
 }
 
-#else
-/* The internal sorting function used by qsort(3) as used by
-   sortquad() */
-int
-quad_sortfunc(const void *arg0, const void *arg1)
-{
-    return ((struct quadsort_t*)arg1)->angle - ((struct quadsort_t*)arg0)->angle;
-}
-
-/* Re-orders the points in a quadrilateral in a counter-clockwise
-   manner. */
-void
-sortquad(struct quad_t *quad_in)
-{
-    int i;
-    struct quadsort_t sortlist[4];
-
-    if(quad_in == NULL)
-        return;
-
-    /* get the point in the middle of the quadrilateral by
-       averaging it's four points */
-    int mpx = 0;
-    int mpy = 0;
-    for ( i = 0 ; i < 4 ; i++ ) {
-        mpx += quad_in->point[i].x;
-        mpy += quad_in->point[i].y;
-    }
-
-    mpx /= 4;
-    mpy /= 4;
-
-    /* create the array of structs to be sorted */
-    for(i = 0; i < 4; i++){
-        sortlist[i].point.x = quad_in->point[i].x;
-        sortlist[i].point = quad_in->point[i];
-        sortlist[i].angle = atan2(
-            (double)(sortlist[i].point.y - mpy),
-            (double)(sortlist[i].point.x - mpx));
-    }
-
-    /* sort the list */
-    qsort(sortlist, 4, sizeof(struct quadsort_t), quad_sortfunc);
-
-    /* rearrange the input array */
-    for(i = 0; i < 4; i++){
-        quad_in->point[i] = sortlist[i].point;
-    }
-
-    return;
-}
-#endif
-
-#if 0
-struct plistsort_t {
-    struct plist_t *plist;
-    double angle;
-};
-
-int
-plist_sortfunc(const void *arg0, const void *arg1)
-{
-    const struct plistsort_t *plist0 = arg0;
-    const struct plistsort_t *plist1 = arg1;
-
-    return plist0->angle - plist1->angle;
-}
-
-struct plist_t *
-plistsort(struct plist_t *plist_in)
-{
-    int i;
-    int listlength;
-    struct plistsort_t *sortlist;
-
-    if(plist_in == NULL)
-        return 1;
-
-    /* find out how big the list is */
-    listlength = 0;
-    for(plist = plist_in; plist != NULL; plist = plist->next){
-        listlength++;
-    }
-
-    /* Fill an array with information about this list for the
-       sorting function to use */
-    sortlist = malloc(sizeof(struct plistsort_t)*i);
-
-    for(plist = plist_in; plist != NULL; plist = plist->next){
-        sortlist[i].plist = plist;
-        sortlist[i].angle = atan(plist->data.y/plist->data.x);
-    }
-
-    /* Engage! */
-    qsort(sortlist, listlength, sizeof(struct plistsort_t),
-        plist_sortfunc);
-
-    /* rearrange the linked list to the sorted order.
-       the -1 causes every element to be touched except the last. */
-    for(i = 0; i < listlength-1; i++){
-        sortlist[i].plist->next = sortlist[i+1].plist->next;
-    }
-    /* set the last element to NULL */
-    sortlist[i].plist->next = NULL;
-
-    free(sortlist);
-
-    return sortlist[i].plist;
-}
-#endif 
-
 /* Filters an image for a channel, and fills a pointer to an image
    with the monochrome result. channel tells which channel to filter.
    Valid values are:
@@ -259,7 +132,7 @@ imageFilter(IplImage *image, IplImage **product, int channel)
             cvInRangeS(hsvimage, cvScalar(150, 128, 128, 255),
                 cvScalar(180, 255, 255, 255), tmp0);
 
-            cvOr(tmp0, tmp1, tmp0, NULL);
+            cvOr(tmp0, tmp1, tmp0, nullptr);
             break;
         case FLT_GREEN:
             cvInRangeS(hsvimage, cvScalar(43, 128, 128, 255),
@@ -292,7 +165,7 @@ imageFilter(IplImage *image, IplImage **product, int channel)
 
     CvSize size;
 
-    if(image == NULL || product == NULL)
+    if(image == nullptr || product == nullptr)
         return 1;
 
     /* make sure they passed a valid value into channel */
@@ -308,7 +181,7 @@ imageFilter(IplImage *image, IplImage **product, int channel)
     blue = cvCreateImage(size, 8, 1);
     tmp0 = cvCreateImage(size, 8, 1);
     tmp1 = cvCreateImage(size, 8, 1);
-    cvSplit(image, blue, green, red, NULL);
+    cvSplit(image, blue, green, red, nullptr);
 
     /* threshold */
     cvThreshold(red, red, 50, 255,
@@ -338,8 +211,8 @@ imageFilter(IplImage *image, IplImage **product, int channel)
 
     /* The three together to yeild a binary image containing only
        the specified colour. tmp0 is the result.  */
-    cvAnd(red, green, tmp0, NULL);
-    cvAnd(tmp0, blue, tmp1, NULL);
+    cvAnd(red, green, tmp0, nullptr);
+    cvAnd(tmp0, blue, tmp1, nullptr);
 
     /* we're done with most of this */
     cvReleaseImage(&red);
@@ -355,25 +228,17 @@ imageFilter(IplImage *image, IplImage **product, int channel)
 }
 #endif
 
-void
-saveRGBimage(IplImage *image, char *path)
-{
-    cvSaveImage( path , image , NULL );
-
-    return;
+void saveRGBimage(IplImage* image, char* path) {
+    cvSaveImage(path, image, nullptr);
 }
 
-/* Takes calibration images of red, green, and blue boxes, and
-   finds a quadrilateral that represents the screen. If any of
-   the calibration image arguments are NULL, they will be ignored.
-   Remember to free(*quadout) when you're done with it. */
-int
-findScreenBox(
-    IplImage *redimage,
-    IplImage *greenimage,
-    IplImage *blueimage,
-    struct quad_t **quadout)
-{
+/* Takes calibration images of red, green, and blue boxes, and finds a
+ * quadrilateral that represents the screen. If any of the calibration image
+ * arguments are nullptr, they will be ignored. Remember to free(*quadout) when
+ * you're done with it.
+ */
+int findScreenBox(IplImage* redimage, IplImage* greenimage, IplImage* blueimage,
+                  struct quad_t** quadout) {
     int i;
     struct quad_t *quad;
 
@@ -388,7 +253,7 @@ findScreenBox(
 
     CvSize size;
 
-    if(quadout == NULL)
+    if(quadout == nullptr)
         return 1;
 
     /* we should probably check that all three images coming in
@@ -399,34 +264,34 @@ findScreenBox(
     tmp0 = cvCreateImage(size, 8, 1);
 
     /* filter the images */
-    if(redimage != NULL){
+    if(redimage != nullptr){
         imageFilter(redimage, &redfilter, FLT_RED);
-        /* cvDilate(redfilter, redfilter, NULL, 2); */
-        cvSaveImage( "redCalib-out.png", redfilter, NULL ); // TODO
+        /* cvDilate(redfilter, redfilter, nullptr, 2); */
+        cvSaveImage( "redCalib-out.png", redfilter, nullptr ); // TODO
     }
-    if(greenimage != NULL){
+    if(greenimage != nullptr){
         imageFilter(greenimage, &greenfilter, FLT_GREEN);
-        /* cvDilate(greenfilter, greenfilter, NULL, 2); */
-        cvSaveImage( "greenCalib-out.png", greenfilter, NULL ); // TODO
+        /* cvDilate(greenfilter, greenfilter, nullptr, 2); */
+        cvSaveImage( "greenCalib-out.png", greenfilter, nullptr ); // TODO
     }
-    if(blueimage != NULL){
+    if(blueimage != nullptr){
         imageFilter(blueimage, &bluefilter, FLT_BLUE);
-        /* cvDilate(bluefilter, bluefilter, NULL, 2); */
-        cvSaveImage( "blueCalib-out.png", bluefilter, NULL ); // TODO
+        /* cvDilate(bluefilter, bluefilter, nullptr, 2); */
+        cvSaveImage( "blueCalib-out.png", bluefilter, nullptr ); // TODO
     }
 
     /* and the three images together */
     memset(tmp0->imageData, 0xff, size.width*size.height);
-    if(redimage != NULL)
-        cvAnd(tmp0, redfilter, tmp0, NULL);
-    if(greenimage != NULL)
-        cvAnd(tmp0, greenfilter, tmp0, NULL);
-    if(blueimage != NULL)
-        cvAnd(tmp0, bluefilter, tmp0, NULL);
+    if(redimage != nullptr)
+        cvAnd(tmp0, redfilter, tmp0, nullptr);
+    if(greenimage != nullptr)
+        cvAnd(tmp0, greenfilter, tmp0, nullptr);
+    if(blueimage != nullptr)
+        cvAnd(tmp0, bluefilter, tmp0, nullptr);
 
-    cvDilate( tmp0 , tmp0 , NULL , 2 );
+    cvDilate( tmp0 , tmp0 , nullptr , 2 );
 
-    cvSaveImage("calibCombined-out.png", tmp0, NULL); // TODO
+    cvSaveImage("calibCombined-out.png", tmp0, nullptr); // TODO
 
     /* only the calibration quadrilateral should be in tmp0, now
        we need to find it's points */
@@ -438,15 +303,15 @@ findScreenBox(
     scanner = cvStartFindContours(tmp0, storage, sizeof(CvContour),
         CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE, cvPoint(0, 0));
 
-    /* this way, the function returns NULL if no quad was found */
-    quad = NULL;
+    /* this way, the function returns nullptr if no quad was found */
+    quad = nullptr;
 
-    while((ctr = cvFindNextContour(scanner)) != NULL){
+    while((ctr = cvFindNextContour(scanner)) != nullptr){
         /* approximate the polygon, and find the points */
         ctr = cvApproxPoly(ctr, sizeof(CvContour), storage,
         CV_POLY_APPROX_DP, 10, 0);
 
-        if(ctr == NULL || ctr->total != 4){
+        if(ctr == nullptr || ctr->total != 4){
             continue;
         }
 
@@ -464,11 +329,11 @@ findScreenBox(
     cvReleaseMemStorage(&storage);
 
     /* free the temporary images */
-    if(redimage != NULL)
+    if(redimage != nullptr)
         cvReleaseImage(&redfilter);
-    if(greenimage != NULL)
+    if(greenimage != nullptr)
         cvReleaseImage(&greenfilter);
-    if(blueimage != NULL)
+    if(blueimage != nullptr)
         cvReleaseImage(&bluefilter);
 
     cvReleaseImage(&tmp0);
@@ -477,28 +342,6 @@ findScreenBox(
     *quadout = quad;
 
     return 0;
-}
-
-/* Function to help create linked lists of points (plist_t).
-   struct plist_t *plist = NULL;
-   struct plist_t *plist_start = NULL;
-   for(...){
-       plist = plist_mke(point, plist); 
-       if(plist_start == NULL) plist_start = plist;
-   }
-   plist_start is the start of the linked list */
-struct plist_t *
-plist_mke(CvPoint data, struct plist_t *plist_in)
-{
-    struct plist_t *plist;
-
-    plist = static_cast<plist_t*>(malloc(sizeof(struct plist_t)));
-    plist->next = NULL;
-    if(plist_in != NULL)
-        plist_in->next = plist;
-    plist->data = data;
-
-    return plist;
 }
 
 /* Finds the x coordinate in the line with points p0 and p1 for
@@ -529,40 +372,29 @@ interpolateX(CvPoint p0, CvPoint p1, int y)
     return x;
 }
 
-/* Finds the y coordinate in the line with points p0 and p1 for
-   a given x coordinate. */
-int
-interpolateY(CvPoint p0, CvPoint p1, int x)
-{
-    int m;
-    int denom;
-    int neum;
-    int y;
+/* Finds the y coordinate in the line with points p0 and p1 for a given x
+ * coordinate
+ */
+int interpolateY(CvPoint p0, CvPoint p1, int x) {
     int b;
 
-    neum = (p1.y - p0.y);
-    denom = (p1.x - p0.x);
+    int num = p1.y - p0.y;
+    int denom = p1.x - p0.x;
 
-    /* the undefined case */
-    if(denom == 0) return p0.y;
+    // Handles line along the X axis and the undefined case
+    if (num == 0 || denom == 0) {
+        return p0.y;
+    }
 
-    m = neum/denom;
+    int m = num / denom;
 
-    /* line along the X axis */
-    if(m == 0) return p0.y;
-
-    b = p0.y - (m*p0.x);
-    y = m*x+b;
-
-    return y;
+    b = p0.y - m * p0.x;
+    return m * x + b;
 }
 
 /* returns zero if point is inside quad, one if outside */
-int
-quadCheckPoint(CvPoint point, struct quad_t *quad)
-{
-
-    if(quad == NULL)
+int quadCheckPoint(CvPoint point, struct quad_t* quad) {
+    if(quad == nullptr)
         return 1;
 
     /* should be below segment AB */
@@ -576,7 +408,7 @@ quadCheckPoint(CvPoint point, struct quad_t *quad)
     if(point.y > interpolateY(quad->point[1], quad->point[2],
         point.x)) return 1;
 
-    /* should be right of AD */ 
+    /* should be right of AD */
     if(point.x < interpolateX(quad->point[0], quad->point[1],
         point.y)) return 1;
 
@@ -590,13 +422,11 @@ quadCheckPoint(CvPoint point, struct quad_t *quad)
 
 /* Oh my...
    * test that points are inside quad
-   * locate point in reference to (0, 0) being the top left corner 
+   * locate point in reference to (0, 0) being the top left corner
      of the quadrilateral
    * scale it to the size of the screen */
-int
-findScreenLocation(
-    struct plist_t *plist_in,
-    struct plist_t **plist_out,
+std::list<CvPoint> findScreenLocation(
+    std::list<CvPoint>& plist_in,
     struct quad_t *quad,
     int screenwidth,
     int screenheight)
@@ -606,38 +436,33 @@ findScreenLocation(
     int y;
     int xoffset;
     int yoffset;
-    /*
-    int x_farside;
-    int y_farside;
-    */
+
     int x_length;
     int y_length;
     int scrx;
     int scry;
 
-    struct plist_t *plist;
-    struct plist_t *plistmk = NULL;
-    struct plist_t *plistmk_start = NULL;
-    CvPoint point;
+    std::list<CvPoint> plist_out;
 
-    if(plist_in == NULL || plist_out == NULL || quad == NULL)
-        return 1;
+    if (quad == nullptr) {
+        return plist_out;
+    }
 
     /* Sort the calibration quadrilateral's points
        counter-clockwise */
     sortquad(quad);
 
-    for(plist = plist_in; plist != NULL; plist = plist->next){
+    for (auto& point : plist_in) {
         /* is the point within the quadrilateral? */
-        if(quadCheckPoint(plist->data, quad)){
+        if (quadCheckPoint(point, quad)) {
             /* it's outside the quadrilateral */
             continue;
         }
 
         /* plist->data is the point inside quadrilateral which
            we need to transform into the screen */
-        x = plist->data.x;
-        y = plist->data.y;
+        x = point.x;
+        y = point.y;
 
         /* find the distance from the origin to the
            corresponding points on the side of the
@@ -676,56 +501,47 @@ findScreenLocation(
         scry = (y*screenheight)/y_length;
         point.x = scrx;
         point.y = scry;
-        plistmk = plist_mke(point, plistmk);
-        if(plistmk_start == NULL) plistmk_start = plistmk;
+        if (plist_out.empty()) {
+            plist_out.emplace_back(scrx, scry);
+        }
     }
 
     /* y = mx+b */
     /* m = (y2-y1)/(x2-x1) */
 
-    *plist_out = plistmk_start;
-
-    return 0;
+    return plist_out;
 }
 
 /* Creates a list of points in the image which could be the pointer.
    Finds areas of color specified by channel. Acceptable values are
    the same as used by imageFilter() .
    Remember to plist_free(*plist_out) when you're done with it. */
-int
-findImageLocation(
-    IplImage *image,
-    struct plist_t **plist_out,
-    int channel)
-{
+std::list<CvPoint> findImageLocation(IplImage *image, int channel) {
     CvPoint point;
     CvMemStorage *storage;
     CvContourScanner scanner;
     CvSeq *ctr;
     CvRect rect;
     IplImage *tmp1;
-    struct plist_t *plist = NULL;
-    struct plist_t *plist_start = NULL;
+    std::list<CvPoint> plist;
 
-    if(image == NULL || plist_out == NULL)
-        return 1;
+    if(image == nullptr)
+        return plist;
 
     /* filter the green channel */
-    if(imageFilter(image, &tmp1, channel) != 0) return 1;
+    if(imageFilter(image, &tmp1, channel) != 0) return plist;
 
     /* We now have an image with only the channel we want */
     storage = cvCreateMemStorage(0);
     scanner = cvStartFindContours(tmp1, storage, sizeof(CvContour),
         CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE, cvPoint(0, 0));
 
-    while((ctr = cvFindNextContour(scanner)) != NULL){
+    while ((ctr = cvFindNextContour(scanner)) != nullptr) {
             /* find the center of the bounding rectangle of the
            contour */
         rect = cvBoundingRect(ctr, 0);
-        if(rect.width > 4 && rect.height > 4){
-            point.x = rect.x+(rect.width/2);
-            point.y = rect.y+(rect.height/2);
-            plist = plist_mke(point, plist);
+        if (rect.width > 4 && rect.height > 4) {
+            plist.emplace_back(rect.x + rect.width / 2, rect.y + rect.height / 2);
         }
 
 
@@ -733,9 +549,6 @@ findImageLocation(
         /*
         point = *CV_GET_SEQ_ELEM(CvPoint, ctr, 0);
         */
-
-        /* we should do this better */
-        if(plist_start == NULL) plist_start = plist;
     }
 
     cvEndFindContours(&scanner);
@@ -744,44 +557,38 @@ findImageLocation(
 
     cvReleaseImage(&tmp1);
 
-    *plist_out = plist_start;
-
-    return 0;
+    return plist;
 }
 
 /* Converts a raw 24bit RGB image into an OpenCV IplImage.
    Use cvReleaseImage(IplImage **) to free. */
-IplImage *
-RGBtoIplImage(uint8_t *rgbimage, int width, int height)
-{
+IplImage* RGBtoIplImage(uint8_t* rgbimage, int width, int height) {
     CvSize size;
     IplImage *image;
 
-    if(rgbimage == NULL)
-        return NULL;
+    if(rgbimage == nullptr)
+        return nullptr;
 
     size.width = width;
     size.height = height;
     image = cvCreateImage(size, 8, 3);
-    memcpy( image->imageData , rgbimage , width * height * 3 );
+    memcpy(image->imageData, rgbimage, width * height * 3);
 
     return image;
 }
 
 #if 0
 
-/* Example usage */
-int
-main()
-{
-    struct quad_t *quad;
-    struct plist_t *plist_raw;
-    struct plist_t *plist_proc;
+// Example usage
+int main() {
+    struct quad_t* quad;
+    struct plist_t* plist_raw;
+    struct plist_t* plist_proc;
 
-    IplImage *r_image;
-    IplImage *g_image;
-    IplImage *b_image;
-    IplImage *image;
+    IplImage* r_image;
+    IplImage* g_image;
+    IplImage* b_image;
+    IplImage* image;
 
     /* Load the calibration images, and an image which contains
        a pointing instrument. Normally, RGBtoIplImage would be
@@ -793,7 +600,7 @@ main()
 
     /* g_image = cvLoadImage("g_image_r.png", CV_LOAD_IMAGE_COLOR);
     assert(g_image); */
-    g_image = NULL;
+    g_image = nullptr;
 
     b_image = cvLoadImage("b_image_rl-1.png", CV_LOAD_IMAGE_COLOR);
     assert(b_image);
@@ -805,7 +612,7 @@ main()
        image which represents the screen */
     assert(!findScreenBox(r_image, g_image, b_image, &quad));
 
-    /* The calls to findImageLocation and findScreenLocation 
+    /* The calls to findImageLocation and findScreenLocation
        are to be called repeadedly with images from the Kinect */
 
     /* Create a list of points which represent potential locations
@@ -836,6 +643,3 @@ main()
     return 0;
 }
 #endif
-
-/* moveMouse(input, plist_proc->data.x, plist_proc->data.y, 0); */
-
