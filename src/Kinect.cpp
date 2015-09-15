@@ -18,11 +18,11 @@
 sf::Color HSVtoRGB(unsigned short hue, unsigned short saturation, unsigned short value);
 
 Kinect::Kinect() {
-    m_kinect.rgb.newframe = newVideoFrame;
-    m_kinect.rgb.callbackarg = this;
+    rgb.newframe = newVideoFrame;
+    rgb.callbackarg = this;
 
-    m_kinect.depth.newframe = newDepthFrame;
-    m_kinect.depth.callbackarg = this;
+    depth.newframe = newDepthFrame;
+    depth.callbackarg = this;
 
     m_imageSize = {static_cast<int>(ImageVars::width), static_cast<int>(ImageVars::height)};
 
@@ -43,13 +43,17 @@ Kinect::Kinect() {
 }
 
 Kinect::~Kinect() {
+    threadrunning = false;
     stopVideoStream();
     stopDepthStream();
 
-    m_kinect.~knt();
+    /* join to the thread: maybe this should be in the stopstream functions?
+       the entire idea that stopstream can be called both from inside and
+       outside of the thread is a bit jacked up. I'll probably fix this soon */
+    thread.join();
 
     // wait for Kinect thread to close before destroying instance
-    while (m_kinect.threadrunning == 1) {
+    while (threadrunning == true) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
@@ -70,8 +74,8 @@ Kinect::~Kinect() {
 
 void Kinect::startVideoStream() {
     // If rgb image stream is down, start it
-    if (m_kinect.rgb.state == NSTREAM_DOWN) {
-        if (m_kinect.startstream(m_kinect.rgb) == 0) {
+    if (rgb.state == NSTREAM_DOWN) {
+        if (startstream(rgb) == 0) {
             std::lock_guard<std::mutex> lock(m_vidWindowMutex);
             if (m_vidWindow != nullptr) {
                 PostMessage(m_vidWindow, WM_KINECT_VIDEOSTART, 0, 0);
@@ -82,8 +86,8 @@ void Kinect::startVideoStream() {
 
 void Kinect::startDepthStream() {
     // If depth image stream is down, start it
-    if (m_kinect.depth.state == NSTREAM_DOWN) {
-        if (m_kinect.startstream(m_kinect.depth) == 0) {
+    if (depth.state == NSTREAM_DOWN) {
+        if (startstream(depth) == 0) {
             std::lock_guard<std::mutex> lock(m_depthWindowMutex);
             if (m_depthWindow != nullptr) {
                 PostMessage(m_depthWindow, WM_KINECT_DEPTHSTART, 0, 0);
@@ -93,7 +97,21 @@ void Kinect::startDepthStream() {
 }
 
 void Kinect::stopVideoStream() {
-    m_kinect.rgb_stopstream();
+    auto oldState = NSTREAM_UP;
+
+    // If this function was able to switch rgb's state from up to down
+    if (rgb.state.compare_exchange_strong(oldState, NSTREAM_DOWN)) {
+        // If other stream is down too, stop the thread
+        if (depth.state == NSTREAM_DOWN) {
+            threadrunning = false;
+        }
+
+        // Call the callback
+        if (rgb.streamstopping != nullptr) {
+            rgb.streamstopping(rgb, rgb.callbackarg);
+        }
+    }
+
     m_foundScreen = false;
 
     std::lock_guard<std::mutex> lock(m_vidWindowMutex);
@@ -103,7 +121,20 @@ void Kinect::stopVideoStream() {
 }
 
 void Kinect::stopDepthStream() {
-    m_kinect.depth_stopstream();
+    auto oldState = NSTREAM_UP;
+
+    // If this function was able to switch depth's state from up to down
+    if (depth.state.compare_exchange_strong(oldState, NSTREAM_DOWN)) {
+        // If other stream is down too, stop the thread
+        if (rgb.state == NSTREAM_DOWN) {
+            threadrunning = false;
+        }
+
+        // Call the callback
+        if (depth.streamstopping != nullptr) {
+            depth.streamstopping(depth, depth.callbackarg);
+        }
+    }
 
     std::lock_guard<std::mutex> lock(m_depthWindowMutex);
     if (m_depthWindow != nullptr) {
@@ -112,11 +143,11 @@ void Kinect::stopDepthStream() {
 }
 
 bool Kinect::isVideoStreamRunning() {
-    return m_kinect.rgb.state == NSTREAM_UP;
+    return rgb.state == NSTREAM_UP;
 }
 
 bool Kinect::isDepthStreamRunning() {
-    return m_kinect.depth.state == NSTREAM_UP;
+    return depth.state == NSTREAM_UP;
 }
 
 void Kinect::setVideoStreamFPS(unsigned int fps) {
@@ -302,126 +333,126 @@ void Kinect::setScreenRect(RECT screenRect) {
     m_screenRect = screenRect;
 }
 
-void Kinect::newVideoFrame(nstream<knt>& streamObject, void* classObject) {
-    Kinect* kinectPtr = reinterpret_cast<Kinect*>(classObject);
+void Kinect::newVideoFrame(nstream<Kinect>& streamObject, void* classObject) {
+    Kinect* kntPtr = reinterpret_cast<Kinect*>(classObject);
 
-    kinectPtr->m_vidImageMutex.lock();
+    kntPtr->m_vidImageMutex.lock();
 
     // Copy image to internal buffer (3 channels)
-    std::memcpy(&kinectPtr->m_vidBuffer[0], kinectPtr->m_kinect.rgb.buf,
+    std::memcpy(&kntPtr->m_vidBuffer[0], kntPtr->rgb.buf,
                 ImageVars::width * ImageVars::height * 3);
 
-    kinectPtr->m_vidDisplayMutex.lock();
+    kntPtr->m_vidDisplayMutex.lock();
 
-    DeleteObject(kinectPtr->m_vidImage); // free previous image if there is one
+    DeleteObject(kntPtr->m_vidImage); // free previous image if there is one
 
     //                            B ,   G ,   R ,   A
     CvScalar lineColor = cvScalar(0x00, 0xFF, 0x00, 0xFF);
 
-    kinectPtr->m_cvVidImage = RGBtoIplImage(&kinectPtr->m_vidBuffer[0],
+    kntPtr->m_cvVidImage = RGBtoIplImage(&kntPtr->m_vidBuffer[0],
                                             ImageVars::width, ImageVars::height);
 
-    if (kinectPtr->m_foundScreen) {
+    if (kntPtr->m_foundScreen) {
         // Draw lines to show user where the screen is
-        cvLine(kinectPtr->m_cvVidImage, kinectPtr->m_quad->point[0],
-               kinectPtr->m_quad->point[1], lineColor, 2, 8, 0);
-        cvLine(kinectPtr->m_cvVidImage, kinectPtr->m_quad->point[1],
-               kinectPtr->m_quad->point[2], lineColor, 2, 8, 0);
-        cvLine(kinectPtr->m_cvVidImage, kinectPtr->m_quad->point[2],
-               kinectPtr->m_quad->point[3], lineColor, 2, 8, 0);
-        cvLine(kinectPtr->m_cvVidImage, kinectPtr->m_quad->point[3],
-               kinectPtr->m_quad->point[0], lineColor, 2, 8, 0);
+        cvLine(kntPtr->m_cvVidImage, kntPtr->m_quad->point[0],
+               kntPtr->m_quad->point[1], lineColor, 2, 8, 0);
+        cvLine(kntPtr->m_cvVidImage, kntPtr->m_quad->point[1],
+               kntPtr->m_quad->point[2], lineColor, 2, 8, 0);
+        cvLine(kntPtr->m_cvVidImage, kntPtr->m_quad->point[2],
+               kntPtr->m_quad->point[3], lineColor, 2, 8, 0);
+        cvLine(kntPtr->m_cvVidImage, kntPtr->m_quad->point[3],
+               kntPtr->m_quad->point[0], lineColor, 2, 8, 0);
 
-        kinectPtr->lookForCursors();
+        kntPtr->lookForCursors();
     }
 
     // Perform conversion from RGBA to BGRA for use as image data in CreateBitmap
-    cvCvtColor(kinectPtr->m_cvVidImage, kinectPtr->m_cvBitmapDest, CV_RGB2BGRA);
+    cvCvtColor(kntPtr->m_cvVidImage, kntPtr->m_cvBitmapDest, CV_RGB2BGRA);
 
-    kinectPtr->m_vidImage = CreateBitmap(ImageVars::width, ImageVars::height,
-                                         1, 32 , kinectPtr->m_cvBitmapDest->imageData);
+    kntPtr->m_vidImage = CreateBitmap(ImageVars::width, ImageVars::height,
+                                         1, 32 , kntPtr->m_cvBitmapDest->imageData);
 
-    cvReleaseImage(&kinectPtr->m_cvVidImage);
+    cvReleaseImage(&kntPtr->m_cvVidImage);
 
-    kinectPtr->m_vidDisplayMutex.unlock();
+    kntPtr->m_vidDisplayMutex.unlock();
 
-    kinectPtr->m_vidImageMutex.unlock();
+    kntPtr->m_vidImageMutex.unlock();
 
     // Limit video frame rate
     using namespace std::chrono;
-    if (1.f / duration_cast<seconds>(system_clock::now() - kinectPtr->m_lastVidFrameTime).count() < kinectPtr->m_vidFrameRate) {
+    if (1.f / duration_cast<seconds>(system_clock::now() - kntPtr->m_lastVidFrameTime).count() < kntPtr->m_vidFrameRate) {
         {
-            std::lock_guard<std::mutex> lock(kinectPtr->m_vidWindowMutex);
-            if (kinectPtr->m_vidWindow != nullptr) {
-                kinectPtr->displayVideo(kinectPtr->m_vidWindow, 0, 0);
+            std::lock_guard<std::mutex> lock(kntPtr->m_vidWindowMutex);
+            if (kntPtr->m_vidWindow != nullptr) {
+                kntPtr->displayVideo(kntPtr->m_vidWindow, 0, 0);
             }
         }
 
-        kinectPtr->m_lastVidFrameTime = system_clock::now();
+        kntPtr->m_lastVidFrameTime = system_clock::now();
     }
 }
 
-void Kinect::newDepthFrame(nstream<knt>& streamObject, void* classObject) {
-    Kinect* kinectPtr = reinterpret_cast<Kinect*>(classObject);
+void Kinect::newDepthFrame(nstream<Kinect>& streamObject, void* classObject) {
+    Kinect* kntPtr = reinterpret_cast<Kinect*>(classObject);
 
-    kinectPtr->m_depthImageMutex.lock();
+    kntPtr->m_depthImageMutex.lock();
 
     // Copy image to internal buffer (2 bytes per pixel)
-    std::memcpy(&kinectPtr->m_depthBuffer[0], kinectPtr->m_kinect.depth.buf,
+    std::memcpy(&kntPtr->m_depthBuffer[0], kntPtr->depth.buf,
                 ImageVars::width * ImageVars::height * 2);
 
     double depth = 0.0;
     unsigned short depthVal = 0;
     for (unsigned int index = 0; index < ImageVars::width * ImageVars::height; index++) {
-        std::memcpy(&depthVal, &kinectPtr->m_depthBuffer[2 * index], sizeof(unsigned short));
+        std::memcpy(&depthVal, &kntPtr->m_depthBuffer[2 * index], sizeof(unsigned short));
 
         depth = Kinect::rawDepthToMeters(depthVal);
 
         sf::Color color = HSVtoRGB(360 * depth / 5.f, 100, 100);
 
         // Assign values from 0 to 5 meters with a shade from black to white
-        kinectPtr->m_cvDepthImage->imageData[4 * index + 0] = color.b;
-        kinectPtr->m_cvDepthImage->imageData[4 * index + 1] = color.g;
-        kinectPtr->m_cvDepthImage->imageData[4 * index + 2] = color.r;
+        kntPtr->m_cvDepthImage->imageData[4 * index + 0] = color.b;
+        kntPtr->m_cvDepthImage->imageData[4 * index + 1] = color.g;
+        kntPtr->m_cvDepthImage->imageData[4 * index + 2] = color.r;
     }
 
     // Make HBITMAP from pixel array
-    kinectPtr->m_depthDisplayMutex.lock();
+    kntPtr->m_depthDisplayMutex.lock();
 
     //                            B ,   G ,   R ,   A
     CvScalar lineColor = cvScalar(0x00, 0xFF, 0x00, 0xFF);
 
-    if (kinectPtr->m_foundScreen) {
+    if (kntPtr->m_foundScreen) {
         // Draw lines to show user where the screen is
-        cvLine(kinectPtr->m_cvDepthImage, kinectPtr->m_quad->point[0],
-               kinectPtr->m_quad->point[1], lineColor, 2, 8, 0);
-        cvLine(kinectPtr->m_cvDepthImage, kinectPtr->m_quad->point[1],
-               kinectPtr->m_quad->point[2], lineColor, 2, 8, 0);
-        cvLine(kinectPtr->m_cvDepthImage, kinectPtr->m_quad->point[2],
-               kinectPtr->m_quad->point[3], lineColor, 2, 8, 0);
-        cvLine(kinectPtr->m_cvDepthImage, kinectPtr->m_quad->point[3],
-               kinectPtr->m_quad->point[0], lineColor, 2, 8, 0);
+        cvLine(kntPtr->m_cvDepthImage, kntPtr->m_quad->point[0],
+               kntPtr->m_quad->point[1], lineColor, 2, 8, 0);
+        cvLine(kntPtr->m_cvDepthImage, kntPtr->m_quad->point[1],
+               kntPtr->m_quad->point[2], lineColor, 2, 8, 0);
+        cvLine(kntPtr->m_cvDepthImage, kntPtr->m_quad->point[2],
+               kntPtr->m_quad->point[3], lineColor, 2, 8, 0);
+        cvLine(kntPtr->m_cvDepthImage, kntPtr->m_quad->point[3],
+               kntPtr->m_quad->point[0], lineColor, 2, 8, 0);
     }
 
-    DeleteObject(kinectPtr->m_depthImage); // free previous image if there is one
-    kinectPtr->m_depthImage = CreateBitmap(ImageVars::width, ImageVars::height,
-                                           1, 32, kinectPtr->m_cvDepthImage->imageData);
+    DeleteObject(kntPtr->m_depthImage); // free previous image if there is one
+    kntPtr->m_depthImage = CreateBitmap(ImageVars::width, ImageVars::height,
+                                           1, 32, kntPtr->m_cvDepthImage->imageData);
 
-    kinectPtr->m_depthDisplayMutex.unlock();
+    kntPtr->m_depthDisplayMutex.unlock();
 
-    kinectPtr->m_depthImageMutex.unlock();
+    kntPtr->m_depthImageMutex.unlock();
 
     // Limit depth image stream frame rate
     using namespace std::chrono;
-    if (1.f / duration_cast<seconds>(system_clock::now() - kinectPtr->m_lastDepthFrameTime).count() < kinectPtr->m_depthFrameRate) {
+    if (1.f / duration_cast<seconds>(system_clock::now() - kntPtr->m_lastDepthFrameTime).count() < kntPtr->m_depthFrameRate) {
         {
-            std::lock_guard<std::mutex> lock(kinectPtr->m_depthWindowMutex);
-            if (kinectPtr->m_depthWindow != nullptr) {
-                kinectPtr->displayDepth(kinectPtr->m_depthWindow, 0, 0);
+            std::lock_guard<std::mutex> lock(kntPtr->m_depthWindowMutex);
+            if (kntPtr->m_depthWindow != nullptr) {
+                kntPtr->displayDepth(kntPtr->m_depthWindow, 0, 0);
             }
         }
 
-        kinectPtr->m_lastDepthFrameTime = system_clock::now();
+        kntPtr->m_lastDepthFrameTime = system_clock::now();
     }
 }
 
@@ -545,4 +576,335 @@ sf::Color HSVtoRGB( unsigned short hue , unsigned short saturation , unsigned sh
     color.b += m;
 
     return color;
+}
+
+/*
+ * Callback called by libfreenect each time the buffer is filled with a
+ * new RGB frame
+ *
+ * dev: filled with a pointer the the freenect device
+ * rgb: pointer to the RGB buffer
+ * timestamp: POSIX timestamp of the buffer
+ *
+ * not safe for multiple instances because nstm has to be global
+ */
+void Kinect::rgb_cb(freenect_device* dev, void* rgbBuf, uint32_t timestamp) {
+    Kinect& kntPtr = *static_cast<Kinect*>(freenect_get_user(dev));
+
+    /* Do nothing if the stream isn't up */
+    if (kntPtr.rgb.state != NSTREAM_UP) {
+        return;
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(kntPtr.rgb.mutex);
+
+        /* Update timestamp: should we be using the provided one? */
+        /* gettimeofday(&curtime, &thistimezone); nstm->timestamp = curtime.tv_sec;
+         */
+        kntPtr.rgb.timestamp = timestamp;
+
+        /* Swap buffers */
+        if (kntPtr.rgb.buf == kntPtr.rgb.buf0.get()) {
+            kntPtr.rgb.buf = kntPtr.rgb.buf1.get();
+            freenect_set_video_buffer(dev, kntPtr.rgb.buf0.get());
+        }
+        else {
+            kntPtr.rgb.buf = kntPtr.rgb.buf0.get();
+            freenect_set_video_buffer(dev, kntPtr.rgb.buf1.get());
+        }
+    }
+
+    /* call the new frame callback */
+    if (kntPtr.rgb.newframe != nullptr) {
+        kntPtr.rgb.newframe(kntPtr.rgb, kntPtr.rgb.callbackarg);
+    }
+}
+
+/*
+ * Callback called by libfreenect each time the buffer is filled with a
+ * new depth frame
+ *
+ * dev: filled with a pointer to the freenect device
+ * rgb: pointer to the depth buffer
+ * timestamp: POSIX timestamp of the buffer
+ *
+ * not safe for multiple instances because nstm has to be global
+ */
+void Kinect::depth_cb(freenect_device* dev, void* depthBuf, uint32_t timestamp) {
+    Kinect& kntPtr = *static_cast<Kinect*>(freenect_get_user(dev));
+
+    /* Do nothing if the stream isn't up */
+    if (kntPtr.depth.state != NSTREAM_UP) {
+        return;
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(kntPtr.depth.mutex);
+
+        /* update timestamp: should we be using the provided one? */
+        kntPtr.depth.timestamp = timestamp;
+
+        /* Swap buffers */
+        if (kntPtr.depth.buf == kntPtr.depth.buf0.get()) {
+            kntPtr.depth.buf = kntPtr.depth.buf1.get();
+            freenect_set_depth_buffer(dev, kntPtr.depth.buf0.get());
+        }
+        else {
+            kntPtr.depth.buf = kntPtr.depth.buf0.get();
+            freenect_set_depth_buffer(dev, kntPtr.depth.buf1.get());
+        }
+    }
+
+    /* call the new frame callback */
+    if (kntPtr.depth.newframe != nullptr) {
+        kntPtr.depth.newframe(kntPtr.depth, kntPtr.depth.callbackarg);
+    }
+}
+
+/*
+ * User calls this to start an RGB or depth stream. Should be called
+ * through the nstream_t struct
+ *
+ * stream: The nstream_t handle of the stream to start.
+ */
+int Kinect::startstream(nstream<Kinect>& stream) {
+    /* You can't start a stream that's already started */
+    if (stream.state != NSTREAM_DOWN)
+        return 1;
+
+    threadrunning_mutex.lock();
+    if (!threadrunning) {
+        /* The main worker thread isn't running yet. Start it. */
+        threadrunning = true;
+        thread = std::thread(&Kinect::threadmain, this);
+
+        {
+            std::unique_lock<std::mutex> lock(threadrunning_mutex);
+            threadcond.wait(lock);
+        }
+        if (!threadrunning) {
+            /* the kinect failed to initialize */
+            threadrunning_mutex.unlock();
+            return 1;
+        }
+
+    }
+    threadrunning_mutex.unlock();
+
+    stream.state = NSTREAM_UP;
+
+    /* Do the callback */
+    if (stream.streamstarting != nullptr) {
+        stream.streamstarting(stream, stream.callbackarg);
+    }
+
+    return 0;
+}
+
+/*
+ * User calls this to stop the RGB stream. Note that RGB and depth streams
+ * have seperate stop functions, unlike start functions.
+ *
+ * stream: The nstream_t handle of the stream to stop.
+ */
+int Kinect::rgb_stopstream() {
+    if (rgb.state != NSTREAM_UP)
+        return 1;
+
+    if (depth.state != NSTREAM_UP) {
+        /* We're servicing no other streams, shut down the thread */
+        threadrunning = false;
+    }
+
+    rgb.state = NSTREAM_DOWN;
+
+    /* Do the callback */
+    if (rgb.streamstopping != nullptr) {
+        rgb.streamstopping(rgb, rgb.callbackarg);
+    }
+
+    return 0;
+}
+
+/*
+ * User calls this to stop the depth stream. Note that depth and depth streams
+ * have seperate stop functions, unlike start functions.
+ *
+ * stream: The nstream_t handle of the stream to stop
+ */
+int Kinect::depth_stopstream() {
+    if (depth.state != NSTREAM_UP)
+        return 1;
+
+    if (rgb.state != NSTREAM_UP) {
+        /* We're servicing no other streams, shut down the thread */
+        threadrunning = false;
+    }
+
+    depth.state = NSTREAM_DOWN;
+
+    /* Do the callback */
+    if (depth.streamstopping != nullptr) {
+        depth.streamstopping(depth, depth.callbackarg);
+    }
+
+    return 0;
+}
+
+/*
+ * Main thread function, initializes the kinect, and runs the
+ * libfreenect event loop.
+ */
+void Kinect::threadmain() {
+    int error;
+    int ndevs;
+    freenect_context *f_ctx;
+    freenect_device *f_dev;
+
+    /* initialize libfreenect */
+    error = freenect_init(&f_ctx, nullptr);
+    if (error != 0) {
+        fprintf(stderr, "failed to initialize libfreenect\n");
+        threadrunning = false;
+        threadcond.notify_all();
+        return;
+    }
+
+    ndevs = freenect_num_devices(f_ctx);
+    if (ndevs != 1) {
+        fprintf(stderr, "more/less than one kinect detected\n");
+        freenect_shutdown(f_ctx);
+        threadrunning = false;
+        threadcond.notify_all();
+        return;
+    }
+
+    error = freenect_open_device(f_ctx, &f_dev, 0);
+    if (error != 0) {
+        fprintf(stderr, "failed to open kinect device\n");
+        freenect_shutdown(f_ctx);
+        threadrunning = false;
+        threadcond.notify_all();
+        return;
+    }
+
+    freenect_set_user(f_dev, this);
+    freenect_set_video_callback(f_dev, rgb_cb);
+    freenect_set_depth_callback(f_dev, depth_cb);
+
+    error = freenect_set_video_mode(f_dev, freenect_find_video_mode(
+                                           FREENECT_RESOLUTION_MEDIUM,
+                                           FREENECT_VIDEO_RGB));
+    if (error != 0) {
+        fprintf(stderr, "failed to set video mode\n");
+        freenect_close_device(f_dev);
+        freenect_shutdown(f_ctx);
+        threadrunning = false;
+        threadcond.notify_all();
+        return;
+    }
+
+    error = freenect_set_depth_mode(f_dev, freenect_find_depth_mode(
+                                           FREENECT_RESOLUTION_MEDIUM,
+                                           FREENECT_DEPTH_11BIT));
+    if (error != 0) {
+        fprintf(stderr, "failed to set depth mode\n");
+        freenect_close_device(f_dev);
+        freenect_shutdown(f_ctx);
+        threadrunning = false;
+        threadcond.notify_all();
+        return;
+    }
+
+    /* Set the user buffer to buf0 */
+    {
+        std::lock_guard<std::mutex> lock(rgb.mutex);
+        rgb.buf = rgb.buf0.get();
+    }
+
+    error = freenect_set_video_buffer(f_dev, rgb.buf1.get());
+    if (error != 0) {
+        fprintf(stderr, "failed to set video buffer\n");
+        freenect_close_device(f_dev);
+        freenect_shutdown(f_ctx);
+        threadrunning = false;
+        threadcond.notify_all();
+        return;
+    }
+
+    /* Set the user buffer to buf0 */
+    {
+        std::lock_guard<std::mutex> lock(depth.mutex);
+        depth.buf = depth.buf0.get();
+    }
+
+    error = freenect_set_depth_buffer(f_dev, depth.buf1.get());
+    if (error != 0) {
+        fprintf(stderr, "failed to set depth buffer\n");
+        freenect_close_device(f_dev);
+        freenect_shutdown(f_ctx);
+        threadrunning = false;
+        threadcond.notify_all();
+        return;
+    }
+
+    error = freenect_start_video(f_dev);
+    if (error != 0) {
+        fprintf(stderr, "failed to start video stream\n");
+        freenect_close_device(f_dev);
+        freenect_shutdown(f_ctx);
+        threadrunning = false;
+        threadcond.notify_all();
+        return;
+    }
+
+    error = freenect_start_depth(f_dev);
+    if (error != 0) {
+        fprintf(stderr, "failed to start depth stream\n");
+        freenect_close_device(f_dev);
+        freenect_shutdown(f_ctx);
+        threadrunning = false;
+        threadcond.notify_all();
+        return;
+    }
+
+    // We initialized everything successfully
+    threadcond.notify_all();
+
+    /* Turn the LED red */
+    freenect_set_led(f_dev, LED_RED);
+
+    /* Do the main loop */
+    while (freenect_process_events(f_ctx) >= 0 && threadrunning) {
+
+    }
+
+    /* Turn the LED blinking green */
+    freenect_set_led(f_dev, LED_BLINK_GREEN);
+
+    threadrunning = false;
+
+    auto oldState = NSTREAM_UP;
+    // If this function was able to switch rgb's state from up to down
+    if (rgb.state.compare_exchange_strong(oldState, NSTREAM_DOWN)) {
+        // Call the callback
+        if (rgb.streamstopping != nullptr) {
+            rgb.streamstopping(rgb, rgb.callbackarg);
+        }
+    }
+    oldState = NSTREAM_UP;
+    // If this function was able to switch depth's state from up to down
+    if (depth.state.compare_exchange_strong(oldState, NSTREAM_DOWN)) {
+        // Call the callback
+        if (depth.streamstopping != nullptr) {
+            depth.streamstopping(depth, depth.callbackarg);
+        }
+    }
+
+    freenect_stop_video(f_dev);
+    freenect_stop_depth(f_dev);
+
+    freenect_close_device(f_dev);
+    freenect_shutdown(f_ctx);
 }

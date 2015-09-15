@@ -18,15 +18,20 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-#include "CKinect/kinect.h"
 #include "ImageVars.hpp"
 #include "Processing.hpp"
+#include "CKinect/nstream.h"
+#include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <list>
 #include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 #include <cstdint>
+
+#include <libfreenect/libfreenect.h>
 #include <opencv2/core/core_c.h>
 
 #define WM_KINECT_VIDEOSTART  (WM_APP + 0x0001)
@@ -146,15 +151,13 @@ protected:
     CvSize m_imageSize;
 
     // Called when a new video image is received (swaps the image buffer)
-    static void newVideoFrame(nstream<knt>& streamObject, void* classObject);
+    static void newVideoFrame(nstream<Kinect>& streamObject, void* classObject);
 
     // Called when a new depth image is received (swaps the image buffer)
-    static void newDepthFrame(nstream<knt>& streamObject, void* classObject);
+    static void newDepthFrame(nstream<Kinect>& streamObject, void* classObject);
 
 private:
     RECT m_screenRect;
-
-    knt m_kinect;
 
     HBITMAP m_vidImage = nullptr;
     HBITMAP m_depthImage = nullptr;
@@ -201,6 +204,23 @@ private:
                                  unsigned int height);
 
     static double rawDepthToMeters(unsigned short depthValue);
+
+
+    nstream<Kinect> rgb{640, 480, 3, &Kinect::startstream, &Kinect::rgb_stopstream, this};
+    nstream<Kinect> depth{640, 480, 2, &Kinect::startstream, &Kinect::depth_stopstream, this};
+
+    std::thread thread;
+
+    std::atomic<bool> threadrunning{false};
+    std::mutex threadrunning_mutex;
+    std::condition_variable threadcond;
+
+    static void rgb_cb(freenect_device* dev, void* rgbBuf, uint32_t timestamp);
+    static void depth_cb(freenect_device* dev, void* depthBuf, uint32_t timestamp);
+    int startstream(nstream<Kinect>& stream);
+    int rgb_stopstream();
+    int depth_stopstream();
+    void threadmain();
 };
 
 #endif // KINECT_HPP

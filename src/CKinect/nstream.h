@@ -1,6 +1,7 @@
 #ifndef _NSTREAM_H
 #define _NSTREAM_H
 
+#include <atomic>
 #include <memory>
 #include <mutex>
 #include <cstdint>
@@ -18,12 +19,11 @@ class nstream {
 public:
     nstream(int width, int height, int depth, int (T::*startstream)(nstream<T>&),
                      int (T::*stopstream)(), T* ih);
-    virtual ~nstream() = default;
 
     std::mutex mutex;
 
     /* the current state of the stream, either NSTREAM_UP or NSTREAM_DOWN */
-    int state = NSTREAM_DOWN;
+    std::atomic<int> state{NSTREAM_DOWN};
 
     /* The height and width in pixels */
     int imgwidth;
