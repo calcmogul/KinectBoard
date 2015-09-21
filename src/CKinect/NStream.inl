@@ -2,18 +2,18 @@
  * This module provides a high(-ish) level interface for connecting streams
  * of frames between different modules of the program. It is implemented in
  * kinect.c, udpout.c, and many other modules. It provides a framework for
- * streaming based on the structure nstream_t, and implements double
+ * streaming based on the structure NStream, and implements double
  * buffering, and callbacks for various uses.
  */
 
 /*
- * Initialize a new nstream_t struct (usually used on the sender side) and
+ * Initialize a new NStream struct (usually used on the sender side) and
  * it's elements and buffers.
  *
  * Many of it's arguments are various parameters that correspond with members
- * of the struct nstream_t.
+ * of the struct NStream.
  *
- * A pointer to the new nstream_t is returned.
+ * A pointer to the new NStream is returned.
  *
  * width: The width of the image in pixels.
  * height: The height of the image in pixels.
@@ -26,23 +26,24 @@
  *     for whatever purpose it would like. Normally, ih would contain
  *     a pointer to an instance of a structure which contains
  *     additional state information about the module implementing the
- *     sending side of nstream.
+ *     sending side of NStream.
  */
 template <class T>
-nstream<T>::nstream(int width, int height, int depth, int (T::*startstream)(nstream<T>&),
-                 int (T::*stopstream)(), T* ih) {
-    imgwidth = width;
-    imgheight = height;
-    imgdepth = depth;
+NStream<T>::NStream(int width, int height, int depth,
+                    int (T::*startStream)(NStream<T>&),
+                    int (T::*stopStream)(), T* ih) {
+    imgWidth = width;
+    imgHeight = height;
+    imgDepth = depth;
 
-    bufsize = imgwidth * imgheight * imgdepth;
+    bufSize = imgWidth * imgHeight * imgDepth;
 
-    buf0 = std::make_unique<uint8_t[]>(bufsize);
-    buf1 = std::make_unique<uint8_t[]>(bufsize);
+    buf0 = std::make_unique<uint8_t[]>(bufSize);
+    buf1 = std::make_unique<uint8_t[]>(bufSize);
 
     buf = buf0.get();
 
-    this->startstream = startstream;
-    this->stopstream = stopstream;
+    this->startStream = startStream;
+    this->stopStream = stopStream;
     this->ih = ih;
 }

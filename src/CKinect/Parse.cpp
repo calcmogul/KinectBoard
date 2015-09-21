@@ -7,7 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#include "parse.h"
+
+#include "Parse.hpp"
 
 /* Determines the quadrant point is in, if the origin is in the center
    of the quadrilateral specified by quad. This is used by the sortquad

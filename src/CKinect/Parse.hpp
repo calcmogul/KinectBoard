@@ -1,8 +1,8 @@
 /* Functions for idenfiying the screen and pointer in
    images captured by the Micrsoft Kinect. */
 
-#ifndef _PARSE_H
-#define _PARSE_H
+#ifndef PARSE_HPP
+#define PARSE_HPP
 
 #include <opencv2/imgproc/imgproc_c.h>
 #include <list>
@@ -52,4 +52,4 @@ std::list<CvPoint> findImageLocation(IplImage *image, int channel);
 IplImage* RGBtoIplImage(uint8_t *rgbimage, int width, int height);
 void saveRGBimage(IplImage *image, char *path);
 
-#endif
+#endif // PARSE_HPP

@@ -1,5 +1,5 @@
-#ifndef _NSTREAM_H
-#define _NSTREAM_H
+#ifndef NSTREAM_HPP
+#define NSTREAM_HPP
 
 #include <atomic>
 #include <memory>
@@ -12,12 +12,12 @@
 #define NSTREAM_STOPPING 3
 
 template <class T>
-class nstream;
+class NStream;
 
 template <class T>
-class nstream {
+class NStream {
 public:
-    nstream(int width, int height, int depth, int (T::*startstream)(nstream<T>&),
+    NStream(int width, int height, int depth, int (T::*startstream)(NStream<T>&),
                      int (T::*stopstream)(), T* ih);
 
     std::mutex mutex;
@@ -26,12 +26,12 @@ public:
     std::atomic<int> state{NSTREAM_DOWN};
 
     // The height and width in pixels
-    int imgwidth;
-    int imgheight;
-    int imgdepth; // In bytes per pixel
+    int imgWidth;
+    int imgHeight;
+    int imgDepth; // In bytes per pixel
 
     // The size of the buffers
-    unsigned int bufsize;
+    unsigned int bufSize;
 
     // The two buffers to swap
     std::unique_ptr<uint8_t[]> buf0;
@@ -42,13 +42,13 @@ public:
 
     void* callbackarg = nullptr;
 
-    void (*streamstarting)(nstream<T>&, void*) = nullptr;
-    void (*streamstopping)(nstream<T>&, void*) = nullptr;
+    void (*streamStarting)(NStream<T>&, void*) = nullptr;
+    void (*streamStopping)(NStream<T>&, void*) = nullptr;
     // New frame in buffer
-    void (*newframe)(nstream<T>&, void*) = nullptr;
+    void (*newFrame)(NStream<T>&, void*) = nullptr;
 
     // Callbacks
-    int (T::*startStream)(nstream<T>&);
+    int (T::*startStream)(NStream<T>&);
     int (T::*stopStream)();
 
     /* Handle for internal use (implemented differently in different
@@ -60,6 +60,6 @@ public:
     long timestamp = 0;
 };
 
-#include "nstream.inl"
+#include "NStream.inl"
 
-#endif
+#endif // NSTREAM_HPP

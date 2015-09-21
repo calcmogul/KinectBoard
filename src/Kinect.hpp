@@ -20,7 +20,7 @@
 
 #include "ImageVars.hpp"
 #include "Processing.hpp"
-#include "CKinect/nstream.h"
+#include "CKinect/NStream.hpp"
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -151,10 +151,10 @@ protected:
     CvSize m_imageSize;
 
     // Called when a new video image is received (swaps the image buffer)
-    static void newVideoFrame(nstream<Kinect>& streamObject, void* classObject);
+    static void newVideoFrame(NStream<Kinect>& streamObject, void* classObject);
 
     // Called when a new depth image is received (swaps the image buffer)
-    static void newDepthFrame(nstream<Kinect>& streamObject, void* classObject);
+    static void newDepthFrame(NStream<Kinect>& streamObject, void* classObject);
 
 private:
     RECT m_screenRect;
@@ -206,8 +206,8 @@ private:
     static double rawDepthToMeters(unsigned short depthValue);
 
 
-    nstream<Kinect> rgb{640, 480, 3, &Kinect::startstream, &Kinect::rgb_stopstream, this};
-    nstream<Kinect> depth{640, 480, 2, &Kinect::startstream, &Kinect::depth_stopstream, this};
+    NStream<Kinect> rgb{640, 480, 3, &Kinect::startstream, &Kinect::rgb_stopstream, this};
+    NStream<Kinect> depth{640, 480, 2, &Kinect::startstream, &Kinect::depth_stopstream, this};
 
     std::thread thread;
 
@@ -217,7 +217,7 @@ private:
 
     static void rgb_cb(freenect_device* dev, void* rgbBuf, uint32_t timestamp);
     static void depth_cb(freenect_device* dev, void* depthBuf, uint32_t timestamp);
-    int startstream(nstream<Kinect>& stream);
+    int startstream(NStream<Kinect>& stream);
     int rgb_stopstream();
     int depth_stopstream();
     void threadmain();

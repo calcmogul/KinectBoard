@@ -10,22 +10,22 @@
 #include <cstring>
 #include <cstdlib>
 #include <cstdio>
-#include "CKinect/parse.h"
 #include "Kinect.hpp"
 #include "HIDinput.h"
 #include "Color.hpp"
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include "CKinect/Parse.hpp"
 
 Color HSVtoRGB(unsigned short hue, unsigned short saturation,
                unsigned short value);
 
 Kinect::Kinect() {
-    rgb.newframe = newVideoFrame;
+    rgb.newFrame = newVideoFrame;
     rgb.callbackarg = this;
 
-    depth.newframe = newDepthFrame;
+    depth.newFrame = newDepthFrame;
     depth.callbackarg = this;
 
     m_imageSize = {static_cast<int>(ImageVars::width), static_cast<int>(ImageVars::height)};
@@ -111,8 +111,8 @@ void Kinect::stopVideoStream() {
         }
 
         // Call the callback
-        if (rgb.streamstopping != nullptr) {
-            rgb.streamstopping(rgb, rgb.callbackarg);
+        if (rgb.streamStopping != nullptr) {
+            rgb.streamStopping(rgb, rgb.callbackarg);
         }
     }
 
@@ -135,8 +135,8 @@ void Kinect::stopDepthStream() {
         }
 
         // Call the callback
-        if (depth.streamstopping != nullptr) {
-            depth.streamstopping(depth, depth.callbackarg);
+        if (depth.streamStopping != nullptr) {
+            depth.streamStopping(depth, depth.callbackarg);
         }
     }
 
@@ -312,7 +312,7 @@ void Kinect::setScreenRect(RECT screenRect) {
     m_screenRect = screenRect;
 }
 
-void Kinect::newVideoFrame(nstream<Kinect>& streamObject, void* classObject) {
+void Kinect::newVideoFrame(NStream<Kinect>& streamObject, void* classObject) {
     Kinect* kntPtr = reinterpret_cast<Kinect*>(classObject);
 
     kntPtr->m_vidImageMutex.lock();
@@ -371,7 +371,7 @@ void Kinect::newVideoFrame(nstream<Kinect>& streamObject, void* classObject) {
     }
 }
 
-void Kinect::newDepthFrame(nstream<Kinect>& streamObject, void* classObject) {
+void Kinect::newDepthFrame(NStream<Kinect>& streamObject, void* classObject) {
     Kinect* kntPtr = reinterpret_cast<Kinect*>(classObject);
 
     kntPtr->m_depthImageMutex.lock();
@@ -596,8 +596,8 @@ void Kinect::rgb_cb(freenect_device* dev, void* rgbBuf, uint32_t timestamp) {
     }
 
     /* call the new frame callback */
-    if (kntPtr.rgb.newframe != nullptr) {
-        kntPtr.rgb.newframe(kntPtr.rgb, kntPtr.rgb.callbackarg);
+    if (kntPtr.rgb.newFrame != nullptr) {
+        kntPtr.rgb.newFrame(kntPtr.rgb, kntPtr.rgb.callbackarg);
     }
 }
 
@@ -637,18 +637,18 @@ void Kinect::depth_cb(freenect_device* dev, void* depthBuf, uint32_t timestamp) 
     }
 
     /* call the new frame callback */
-    if (kntPtr.depth.newframe != nullptr) {
-        kntPtr.depth.newframe(kntPtr.depth, kntPtr.depth.callbackarg);
+    if (kntPtr.depth.newFrame != nullptr) {
+        kntPtr.depth.newFrame(kntPtr.depth, kntPtr.depth.callbackarg);
     }
 }
 
 /*
  * User calls this to start an RGB or depth stream. Should be called
- * through the nstream_t struct
+ * through the NStream struct
  *
- * stream: The nstream_t handle of the stream to start.
+ * stream: The NStream handle of the stream to start.
  */
-int Kinect::startstream(nstream<Kinect>& stream) {
+int Kinect::startstream(NStream<Kinect>& stream) {
     /* You can't start a stream that's already started */
     if (stream.state != NSTREAM_DOWN)
         return 1;
@@ -675,8 +675,8 @@ int Kinect::startstream(nstream<Kinect>& stream) {
     stream.state = NSTREAM_UP;
 
     /* Do the callback */
-    if (stream.streamstarting != nullptr) {
-        stream.streamstarting(stream, stream.callbackarg);
+    if (stream.streamStarting != nullptr) {
+        stream.streamStarting(stream, stream.callbackarg);
     }
 
     return 0;
@@ -686,7 +686,7 @@ int Kinect::startstream(nstream<Kinect>& stream) {
  * User calls this to stop the RGB stream. Note that RGB and depth streams
  * have seperate stop functions, unlike start functions.
  *
- * stream: The nstream_t handle of the stream to stop.
+ * stream: The NStream handle of the stream to stop.
  */
 int Kinect::rgb_stopstream() {
     if (rgb.state != NSTREAM_UP)
@@ -700,8 +700,8 @@ int Kinect::rgb_stopstream() {
     rgb.state = NSTREAM_DOWN;
 
     /* Do the callback */
-    if (rgb.streamstopping != nullptr) {
-        rgb.streamstopping(rgb, rgb.callbackarg);
+    if (rgb.streamStopping != nullptr) {
+        rgb.streamStopping(rgb, rgb.callbackarg);
     }
 
     return 0;
@@ -711,7 +711,7 @@ int Kinect::rgb_stopstream() {
  * User calls this to stop the depth stream. Note that depth and depth streams
  * have seperate stop functions, unlike start functions.
  *
- * stream: The nstream_t handle of the stream to stop
+ * stream: The NStream handle of the stream to stop
  */
 int Kinect::depth_stopstream() {
     if (depth.state != NSTREAM_UP)
@@ -725,8 +725,8 @@ int Kinect::depth_stopstream() {
     depth.state = NSTREAM_DOWN;
 
     /* Do the callback */
-    if (depth.streamstopping != nullptr) {
-        depth.streamstopping(depth, depth.callbackarg);
+    if (depth.streamStopping != nullptr) {
+        depth.streamStopping(depth, depth.callbackarg);
     }
 
     return 0;
@@ -869,16 +869,16 @@ void Kinect::threadmain() {
     // If this function was able to switch rgb's state from up to down
     if (rgb.state.compare_exchange_strong(oldState, NSTREAM_DOWN)) {
         // Call the callback
-        if (rgb.streamstopping != nullptr) {
-            rgb.streamstopping(rgb, rgb.callbackarg);
+        if (rgb.streamStopping != nullptr) {
+            rgb.streamStopping(rgb, rgb.callbackarg);
         }
     }
     oldState = NSTREAM_UP;
     // If this function was able to switch depth's state from up to down
     if (depth.state.compare_exchange_strong(oldState, NSTREAM_DOWN)) {
         // Call the callback
-        if (depth.streamstopping != nullptr) {
-            depth.streamstopping(depth, depth.callbackarg);
+        if (depth.streamStopping != nullptr) {
+            depth.streamStopping(depth, depth.callbackarg);
         }
     }
 
