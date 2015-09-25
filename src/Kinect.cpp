@@ -73,7 +73,7 @@ Kinect::~Kinect() {
         delete m_calibImages.at(index - 1);
     }
 
-    std::free(m_quad);
+    delete m_quad;
 }
 
 void Kinect::startVideoStream() {
