@@ -16,7 +16,6 @@
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
-#include "CKinect/Parse.hpp"
 
 Color HSVtoRGB(unsigned short hue, unsigned short saturation,
                unsigned short value);
@@ -72,8 +71,6 @@ Kinect::~Kinect() {
         cvReleaseImage(&m_calibImages.at(index - 1));
         delete m_calibImages.at(index - 1);
     }
-
-    delete m_quad;
 }
 
 void Kinect::startVideoStream() {
@@ -235,7 +232,6 @@ void Kinect::calibrate() {
         blueCalib = m_calibImages[Blue];
     }
 
-    std::free(m_quad);
     m_plistRaw.clear();
     m_plistProc.clear();
 
@@ -246,10 +242,10 @@ void Kinect::calibrate() {
      */
     //saveRGBimage(redCalib, (char *)"redCalib-start.data"); // TODO
     //saveRGBimage(blueCalib, (char *)"blueCalib-start.data"); // TODO
-    findScreenBox(redCalib, greenCalib, blueCalib, &m_quad);
+    m_quad = findScreenBox(redCalib, greenCalib, blueCalib);
 
     // If no box was found, m_quad will be nullptr
-    m_foundScreen = (m_quad != nullptr);
+    m_foundScreen = m_quad.validQuad;
 }
 
 void Kinect::lookForCursors() {
@@ -333,14 +329,14 @@ void Kinect::newVideoFrame(NStream<Kinect>& streamObject, void* classObject) {
 
     if (kntPtr->m_foundScreen) {
         // Draw lines to show user where the screen is
-        cvLine(kntPtr->m_cvVidImage, kntPtr->m_quad->point[0],
-               kntPtr->m_quad->point[1], lineColor, 2, 8, 0);
-        cvLine(kntPtr->m_cvVidImage, kntPtr->m_quad->point[1],
-               kntPtr->m_quad->point[2], lineColor, 2, 8, 0);
-        cvLine(kntPtr->m_cvVidImage, kntPtr->m_quad->point[2],
-               kntPtr->m_quad->point[3], lineColor, 2, 8, 0);
-        cvLine(kntPtr->m_cvVidImage, kntPtr->m_quad->point[3],
-               kntPtr->m_quad->point[0], lineColor, 2, 8, 0);
+        cvLine(kntPtr->m_cvVidImage, kntPtr->m_quad.point[0],
+               kntPtr->m_quad.point[1], lineColor, 2, 8, 0);
+        cvLine(kntPtr->m_cvVidImage, kntPtr->m_quad.point[1],
+               kntPtr->m_quad.point[2], lineColor, 2, 8, 0);
+        cvLine(kntPtr->m_cvVidImage, kntPtr->m_quad.point[2],
+               kntPtr->m_quad.point[3], lineColor, 2, 8, 0);
+        cvLine(kntPtr->m_cvVidImage, kntPtr->m_quad.point[3],
+               kntPtr->m_quad.point[0], lineColor, 2, 8, 0);
 
         kntPtr->lookForCursors();
     }
@@ -403,14 +399,14 @@ void Kinect::newDepthFrame(NStream<Kinect>& streamObject, void* classObject) {
 
     if (kntPtr->m_foundScreen) {
         // Draw lines to show user where the screen is
-        cvLine(kntPtr->m_cvDepthImage, kntPtr->m_quad->point[0],
-               kntPtr->m_quad->point[1], lineColor, 2, 8, 0);
-        cvLine(kntPtr->m_cvDepthImage, kntPtr->m_quad->point[1],
-               kntPtr->m_quad->point[2], lineColor, 2, 8, 0);
-        cvLine(kntPtr->m_cvDepthImage, kntPtr->m_quad->point[2],
-               kntPtr->m_quad->point[3], lineColor, 2, 8, 0);
-        cvLine(kntPtr->m_cvDepthImage, kntPtr->m_quad->point[3],
-               kntPtr->m_quad->point[0], lineColor, 2, 8, 0);
+        cvLine(kntPtr->m_cvDepthImage, kntPtr->m_quad.point[0],
+               kntPtr->m_quad.point[1], lineColor, 2, 8, 0);
+        cvLine(kntPtr->m_cvDepthImage, kntPtr->m_quad.point[1],
+               kntPtr->m_quad.point[2], lineColor, 2, 8, 0);
+        cvLine(kntPtr->m_cvDepthImage, kntPtr->m_quad.point[2],
+               kntPtr->m_quad.point[3], lineColor, 2, 8, 0);
+        cvLine(kntPtr->m_cvDepthImage, kntPtr->m_quad.point[3],
+               kntPtr->m_quad.point[0], lineColor, 2, 8, 0);
     }
 
     DeleteObject(kntPtr->m_depthImage); // free previous image if there is one

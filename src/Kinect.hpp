@@ -20,6 +20,7 @@
 
 #include "ImageVars.hpp"
 #include "Processing.hpp"
+#include "CKinect/Parse.hpp"
 #include "CKinect/NStream.hpp"
 #include <atomic>
 #include <chrono>
@@ -182,7 +183,7 @@ private:
     // Used for mouse tracking
     bool m_moveMouse = true;
     bool m_foundScreen = false;
-    struct quad_t* m_quad = nullptr;
+    Quad m_quad;
     std::list<CvPoint> m_plistRaw;
     std::list<CvPoint> m_plistProc;
 

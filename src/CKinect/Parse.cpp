@@ -3,34 +3,28 @@
 
 #include <opencv2/imgproc/imgproc_c.h>
 #include <opencv2/highgui/highgui_c.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdint.h>
+#include <cmath>
 
 #include "Parse.hpp"
 
 /* Determines the quadrant point is in, if the origin is in the center of the
  * quadrilateral specified by quad. This is used by the sortquad function.
  */
-int quad_getquad(struct quad_t* quad, CvPoint point) {
+int quad_getquad(Quad& quad, CvPoint point) {
     int mpx, mpy;
     int px, py;
 
-    if (quad == nullptr)
-        return 1;
-
     /* get the point in the middle of the quadrilateral by
        averaging it's four points */
-    mpx = quad->point[0].x;
-    mpx += quad->point[1].x;
-    mpx += quad->point[2].x;
-    mpx += quad->point[3].x;
+    mpx = quad.point[0].x;
+    mpx += quad.point[1].x;
+    mpx += quad.point[2].x;
+    mpx += quad.point[3].x;
 
-    mpy = quad->point[0].y;
-    mpy += quad->point[1].y;
-    mpy += quad->point[2].y;
-    mpy += quad->point[3].y;
+    mpy = quad.point[0].y;
+    mpy += quad.point[1].y;
+    mpy += quad.point[2].y;
+    mpy += quad.point[3].y;
 
     mpx /= 4;
     mpy /= 4;
@@ -68,29 +62,27 @@ int quad_getquad(struct quad_t* quad, CvPoint point) {
     return 0;
 }
 
-// The internal sorting function used by qsort(3) as used by sortquad()
-int quad_sortfunc(const void* arg0, const void* arg1) {
-    return ((struct quadsort_t*)arg0)->quadrant - ((struct quadsort_t*)arg1)->quadrant;
-}
+// Re-orders the points in a quadrilateral in a counter-clockwise manner
+void sortquad(Quad& quad_in) {
+    std::list<QuadSort> sortList;
 
-/* Re-orders the points in a quadrilateral in a counter-clockwise
-   manner. */
-void sortquad(struct quad_t* quad_in) {
-    struct quadsort_t sortlist[4];
-
-    /* create the array of structs to be sorted */
+    // Create the array of structs to be sorted
     for (int i = 0; i < 4; i++) {
-        sortlist[i].point = quad_in->point[i];
-        sortlist[i].quadrant = quad_getquad(quad_in,
-            quad_in->point[i]);
+        QuadSort temp{quad_in.point[i], quad_getquad(quad_in, quad_in.point[i]),
+                      0};
+        sortList.push_back(temp);
     }
 
-    // sort the list
-    qsort(sortlist, 4, sizeof(struct quadsort_t), quad_sortfunc);
+    // Sort the list
+    sortList.sort([](const QuadSort& arg0, const QuadSort& arg1) {
+        return arg0.quadrant < arg1.quadrant;
+    });
 
-    /* rearrange the input array */
-    for (int i = 0; i < 4; i++) {
-        quad_in->point[i] = sortlist[i].point;
+    // Rearrange the input array
+    int i = 0;
+    for (auto& elem : sortList) {
+        quad_in.point[i] = elem.point;
+        i++;
     }
 }
 
@@ -223,22 +215,16 @@ void saveRGBimage(IplImage* image, char* path) {
 
 /* Takes calibration images of red, green, and blue boxes, and finds a
  * quadrilateral that represents the screen. If any of the calibration image
- * arguments are nullptr, they will be ignored. Remember to free(*quadout) when
- * you're done with it.
+ * arguments are nullptr, they will be ignored.
  */
-int findScreenBox(IplImage* redimage, IplImage* greenimage, IplImage* blueimage,
-                  struct quad_t** quadout) {
-    struct quad_t* quad;
+Quad findScreenBox(IplImage* redimage, IplImage* greenimage, IplImage* blueimage) {
+    Quad quad;
 
     IplImage* redfilter;
     IplImage* greenfilter;
     IplImage* bluefilter;
 
     CvSize size;
-
-    if (quadout == nullptr) {
-        return 1;
-    }
 
     /* we should probably check that all three images coming in are the same
      * size
@@ -266,7 +252,7 @@ int findScreenBox(IplImage* redimage, IplImage* greenimage, IplImage* blueimage,
     }
 
     // and the three images together
-    std::memset(tmp0->imageData, 0xff, size.width*size.height);
+    std::memset(tmp0->imageData, 0xff, size.width * size.height);
     if (redimage != nullptr) {
         cvAnd(tmp0, redfilter, tmp0, nullptr);
     }
@@ -295,9 +281,6 @@ int findScreenBox(IplImage* redimage, IplImage* greenimage, IplImage* blueimage,
                                                    CV_CHAIN_APPROX_SIMPLE,
                                                    CvPoint(0, 0));
 
-    // this way, the function returns nullptr if no quad was found
-    quad = nullptr;
-
     CvSeq* ctr;
     while ((ctr = cvFindNextContour(scanner)) != nullptr) {
         // approximate the polygon, and find the points
@@ -309,10 +292,10 @@ int findScreenBox(IplImage* redimage, IplImage* greenimage, IplImage* blueimage,
         }
 
         // extract the points
-        quad = new struct quad_t;
         for (int i = 0; i < 4; i++) {
-            quad->point[i] = *CV_GET_SEQ_ELEM(CvPoint, ctr, i);
+            quad.point[i] = *CV_GET_SEQ_ELEM(CvPoint, ctr, i);
         }
+        quad.validQuad = true;
         break; // if it succeeds, we want to do it once
     }
 
@@ -334,10 +317,7 @@ int findScreenBox(IplImage* redimage, IplImage* greenimage, IplImage* blueimage,
 
     cvReleaseImage(&tmp0);
 
-    // send off the output
-    *quadout = quad;
-
-    return 0;
+    return quad;
 }
 
 /* Finds the x coordinate in the line with points p0 and p1 for
@@ -385,28 +365,24 @@ int interpolateY(CvPoint p0, CvPoint p1, int x) {
 }
 
 // returns zero if point is inside quad, one if outside
-int quadCheckPoint(CvPoint point, struct quad_t* quad) {
-    if (quad == nullptr) {
-        return 1;
-    }
-
+int quadCheckPoint(CvPoint point, Quad& quad) {
     // should be below segment AB
-    if (point.y < interpolateY(quad->point[0], quad->point[3], point.x)) {
+    if (point.y < interpolateY(quad.point[0], quad.point[3], point.x)) {
         return 1;
     }
 
     // should be left of segment BC
-    if (point.x > interpolateX(quad->point[2], quad->point[3], point.y)) {
+    if (point.x > interpolateX(quad.point[2], quad.point[3], point.y)) {
         return 1;
     }
 
     // should be above segment CD
-    if (point.y > interpolateY(quad->point[1], quad->point[2], point.x)) {
+    if (point.y > interpolateY(quad.point[1], quad.point[2], point.x)) {
         return 1;
     }
 
     // should be right of AD
-    if (point.x < interpolateX(quad->point[0], quad->point[1], point.y)) {
+    if (point.x < interpolateX(quad.point[0], quad.point[1], point.y)) {
         return 1;
     }
 
@@ -425,7 +401,7 @@ int quadCheckPoint(CvPoint point, struct quad_t* quad) {
  * * scale it to the size of the screen
  */
 std::list<CvPoint> findScreenLocation(std::list<CvPoint>& plist_in,
-                                      struct quad_t* quad,
+                                      Quad& quad,
                                       int screenwidth,
                                       int screenheight) {
     int x;
@@ -439,10 +415,6 @@ std::list<CvPoint> findScreenLocation(std::list<CvPoint>& plist_in,
     int scry;
 
     std::list<CvPoint> plist_out;
-
-    if (quad == nullptr) {
-        return plist_out;
-    }
 
     // Sort the calibration quadrilateral's points counter-clockwise
     sortquad(quad);
@@ -463,29 +435,18 @@ std::list<CvPoint> findScreenLocation(std::list<CvPoint>& plist_in,
         /* find the distance from the origin to the corresponding points on the
          * side of the quadrilateral
          */
-        xoffset = interpolateX(quad->point[0], quad->point[1], y);
-        yoffset = interpolateY(quad->point[0], quad->point[3], x);
+        xoffset = interpolateX(quad.point[0], quad.point[1], y);
+        yoffset = interpolateY(quad.point[0], quad.point[3], x);
 
         // apply the offsets (distance to side of quadrilateral) to the point
         x -= xoffset;
         y -= yoffset;
 
-        // calculate width and height of quadrilateral
-        /*
-        x_farside = interpolateX(quad->point[2],
-            quad->point[3], y);
-        y_farside = interpolateY(quad->point[1],
-            quad->point[2], x);
-
-        x_length = x_farside-xoffset;
-        y_length = y_farside-yoffset;
-        */
-
         // ...using the distance formula
-        y_length = hypot(quad->point[1].y - quad->point[0].y,
-            quad->point[1].x - quad->point[0].x);
-        x_length = hypot(quad->point[1].y - quad->point[2].y,
-            quad->point[1].x - quad->point[2].x);
+        y_length = hypot(quad.point[1].y - quad.point[0].y,
+            quad.point[1].x - quad.point[0].x);
+        x_length = hypot(quad.point[1].y - quad.point[2].y,
+            quad.point[1].x - quad.point[2].x);
 
         // proportion the screen dimensions to the quadrilateral dimensions
         // (x):(quad width) == (x):(screen width)

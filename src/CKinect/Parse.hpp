@@ -12,44 +12,47 @@
 #define FLT_GREEN 0x02
 #define FLT_BLUE 0x03
 
-struct ctrlist_t {
+class ContourList {
+public:
     int maxuid;
     struct element_t* element;
 };
 
-struct element_t {
-    int uid; /* unique identifier for the contour */
-    CvSeq *ctr; /* the contour */
-    struct element_t *next;
+class Element {
+public:
+    int uid; // unique identifier for the contour
+    CvSeq* ctr; // the contour
+    struct element_t* next;
 };
 
-struct quad_t {
+class Quad {
+public:
     CvPoint point[4];
+    bool validQuad = false;
 };
 
-struct quadsort_t {
+class QuadSort {
+public:
     CvPoint point;
     int quadrant;
     int angle;
 };
 
-int quad_getquad(struct quad_t* quad, CvPoint point);
-int quad_sortfunc(const void* arg0, const void* arg1);
-void sortquad(struct quad_t* quad_in);
+int quad_getquad(Quad& quad, CvPoint point);
+void sortquad(Quad& quad_in);
 int imageFilter(IplImage* image, IplImage** product, int channel);
-int findScreenBox(IplImage* redimage,
-                  IplImage* greenimage,
-                  IplImage* blueimage,
-                  struct quad_t **quadout);
+Quad findScreenBox(IplImage* redimage,
+                   IplImage* greenimage,
+                   IplImage* blueimage);
 int interpolateX(CvPoint p0, CvPoint p1, int y);
 int interpolateY(CvPoint p0, CvPoint p1, int x);
-int quadCheckPoint(CvPoint point, struct quad_t *quad);
+int quadCheckPoint(CvPoint point, Quad& quad);
 std::list<CvPoint> findScreenLocation(std::list<CvPoint>& plist_in,
-                                      struct quad_t *quad,
+                                      Quad& quad,
                                       int screenwidth,
                                       int screenheight);
-std::list<CvPoint> findImageLocation(IplImage *image, int channel);
-IplImage* RGBtoIplImage(uint8_t *rgbimage, int width, int height);
-void saveRGBimage(IplImage *image, char *path);
+std::list<CvPoint> findImageLocation(IplImage* image, int channel);
+IplImage* RGBtoIplImage(uint8_t* rgbimage, int width, int height);
+void saveRGBimage(IplImage* image, char* path);
 
 #endif // PARSE_HPP
