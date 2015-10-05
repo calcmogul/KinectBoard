@@ -7,54 +7,28 @@
 #ifndef TEST_SCREEN_HPP
 #define TEST_SCREEN_HPP
 
-#define _WIN32_WINNT 0x0501
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
+#include <QApplication>
+#include <QDesktopWidget>
+#include <QMainWindow>
+#include <QRect>
 
 #include "Processing.hpp"
-#include "Color.hpp"
 
-
-class TestScreen : public Processing {
+class TestScreen : public QMainWindow {
 public:
-    TestScreen(HINSTANCE instance = nullptr, bool createNow = false);
+    explicit TestScreen(QRect windowPos = {0, 0, QApplication::desktop()->screenGeometry().width(),
+            QApplication::desktop()->screenGeometry().height()}, QWidget* parent = nullptr);
 
     virtual ~TestScreen();
 
-    // Create HWND
-    void create(const RECT windowPos = {0, 0, GetSystemMetrics(SM_CXSCREEN),
-                                        GetSystemMetrics(SM_CYSCREEN)});
+    void setColor(ProcColor borderColor);
 
-    void setPosition(const RECT windowPos);
-
-    void setColor(Processing::ProcColor borderColor);
-
-    // Displays test pattern with previously set border color
-    void display();
-
-    // Destroy HWND
-    void close();
-
-    static bool unregisterClass();
+protected:
+    void paintEvent(QPaintEvent* event);
 
 private:
-    static const char* m_windowClassName;
-
-    static WNDCLASSEX m_windowClass;
-    static HINSTANCE m_instance;
-    static HBRUSH m_whiteBrush;
-    static HBRUSH m_colorBrush;
-    static bool m_classInitialized;
-
-    static LRESULT CALLBACK OnEvent(HWND, UINT, WPARAM, LPARAM);
-
-    void eventLoop();
-
-    HWND m_window = nullptr;
-    HCURSOR m_prevCursor = nullptr;
-
-    Color m_outlineColor{255, 0, 0};
-    ProcColor m_borderColor = Red;
+    QColor m_outlineColor{255, 0, 0};
+    ProcColor m_borderColor = ProcColor::Red;
 };
 
 #endif // TEST_SCREEN_HPP

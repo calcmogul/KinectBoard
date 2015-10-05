@@ -4,7 +4,7 @@
 #ifndef PARSE_HPP
 #define PARSE_HPP
 
-#include <opencv2/imgproc/imgproc_c.h>
+#include <opencv2/imgproc/imgproc.hpp>
 #include <list>
 #include <cstdint>
 
@@ -27,32 +27,32 @@ public:
 
 class Quad {
 public:
-    CvPoint point[4];
+    cv::Point point[4];
     bool validQuad = false;
 };
 
 class QuadSort {
 public:
-    CvPoint point;
+    cv::Point point;
     int quadrant;
     int angle;
 };
 
-int quad_getquad(Quad& quad, CvPoint point);
+int quad_getquad(Quad& quad, cv::Point point);
 void sortquad(Quad& quad_in);
-int imageFilter(IplImage* image, IplImage** product, int channel);
-Quad findScreenBox(IplImage* redimage,
-                   IplImage* greenimage,
-                   IplImage* blueimage);
-int interpolateX(CvPoint p0, CvPoint p1, int y);
-int interpolateY(CvPoint p0, CvPoint p1, int x);
-int quadCheckPoint(CvPoint point, Quad& quad);
-std::list<CvPoint> findScreenLocation(std::list<CvPoint>& plist_in,
+int imageFilter(cv::Mat& image, IplImage** product, int channel);
+Quad findScreenBox(cv::Mat& redimage,
+                   cv::Mat& greenimage,
+                   cv::Mat& blueimage,
+                   // bitfield. '1' include corresponding cv::Mat in processing
+                   char procImages);
+int interpolateX(cv::Point p0, cv::Point p1, int y);
+int interpolateY(cv::Point p0, cv::Point p1, int x);
+int quadCheckPoint(cv::Point point, Quad& quad);
+std::list<cv::Point> findScreenLocation(std::list<cv::Point>& plist_in,
                                       Quad& quad,
                                       int screenwidth,
                                       int screenheight);
-std::list<CvPoint> findImageLocation(IplImage* image, int channel);
-IplImage* RGBtoIplImage(uint8_t* rgbimage, int width, int height);
-void saveRGBimage(IplImage* image, char* path);
+std::list<cv::Point> findImageLocation(cv::Mat& image, int channel);
 
 #endif // PARSE_HPP

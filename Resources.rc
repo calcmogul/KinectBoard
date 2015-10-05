@@ -1,0 +1,29 @@
+#include "Resource.h"
+
+kinect1-ON ICON "OpenKinectON.ico"
+kinect2-OFF ICON "OpenKinectOFF.ico"
+
+////////// Properties
+1 VERSIONINFO
+FILEVERSION     1,0,0,0
+PRODUCTVERSION  1,0,0,0
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904E4"
+    BEGIN
+      VALUE "CompanyName", "acf | tav"
+      VALUE "FileVersion", "1,0,0,0"
+      VALUE "InternalName", "KinectBoard"
+      VALUE "LegalCopyright", "(c) 2012-2015 Alan Fisher and Tyler Veness"
+      VALUE "OriginalFilename", "KinectBoard.exe"
+      VALUE "ProductName", "KinectBoard"
+      VALUE "ProductVersion", "1.0a"
+    END
+  END
+
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x409, 1252
+  END
+END

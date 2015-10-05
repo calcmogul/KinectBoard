@@ -45,7 +45,7 @@ public:
     void (*streamStarting)(NStream<T>&, void*) = nullptr;
     void (*streamStopping)(NStream<T>&, void*) = nullptr;
     // New frame in buffer
-    void (*newFrame)(NStream<T>&, void*) = nullptr;
+    void (*newFrame)(void*) = nullptr;
 
     // Callbacks
     int (T::*startStream)(NStream<T>&);

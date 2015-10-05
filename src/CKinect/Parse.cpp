@@ -1,16 +1,17 @@
 /* Functions for idenfiying the screen and pointer in
    images captured by the Micrsoft Kinect. */
 
-#include <opencv2/imgproc/imgproc_c.h>
-#include <opencv2/highgui/highgui_c.h>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
 #include <cmath>
+#include <cstring>
 
 #include "Parse.hpp"
 
 /* Determines the quadrant point is in, if the origin is in the center of the
  * quadrilateral specified by quad. This is used by the sortquad function.
  */
-int quad_getquad(Quad& quad, CvPoint point) {
+int quad_getquad(Quad& quad, cv::Point point) {
     int mpx, mpy;
     int px, py;
 
@@ -94,178 +95,121 @@ void sortquad(Quad& quad_in) {
    FLT_BLUE
 */
 
-int imageFilter(IplImage* image, IplImage** product, int channel) {
-        IplImage *hsvimage;
-        IplImage *tmp0;
-        IplImage *tmp1;
+int imageFilter(cv::Mat& image, cv::Mat& product, int channel) {
+        cv::Mat tmp0(image.size(), CV_8UC1);
+        cv::Mat tmp1(image.size(), CV_8UC1);
 
-        tmp0 = cvCreateImage(cvGetSize(image), 8, 1);
-        tmp1 = cvCreateImage(cvGetSize(image), 8, 1);
+        cv::Mat hsvimage(image.size(), CV_8UC3);
+        cv::cvtColor(image, hsvimage, CV_RGB2HSV);
 
-        hsvimage = cvCreateImage(cvGetSize(image), 8, 3);
-        cvCvtColor(image, hsvimage, CV_RGB2HSV);
-
-        switch(channel){
+        switch (channel) {
         case FLT_RED:
-            cvInRangeS(hsvimage, cvScalar(0, 128, 128, 255),
-                cvScalar(10, 255, 255, 255), tmp1);
+            cv::inRange(hsvimage, cv::Scalar(0, 128, 128, 255),
+                        cv::Scalar(10, 255, 255, 255), tmp1);
 
-            cvInRangeS(hsvimage, cvScalar(150, 128, 128, 255),
-                cvScalar(180, 255, 255, 255), tmp0);
+            cv::inRange(hsvimage, cv::Scalar(150, 128, 128, 255),
+                        cv::Scalar(180, 255, 255, 255), tmp0);
 
-            cvOr(tmp0, tmp1, tmp0, nullptr);
+            cv::bitwise_or(tmp0, tmp1, tmp0);
             break;
         case FLT_GREEN:
-            cvInRangeS(hsvimage, cvScalar(43, 128, 128, 255),
-                cvScalar(70, 255, 255, 255), tmp0);
+            cv::inRange(hsvimage, cv::Scalar(43, 128, 128, 255),
+                        cv::Scalar(70, 255, 255, 255), tmp0);
             break;
         case FLT_BLUE:
-            cvInRangeS(hsvimage, cvScalar(99, 64, 64, 255),
-                cvScalar(133, 255, 255, 255), tmp0);
+            cv::inRange(hsvimage, cv::Scalar(99, 64, 64, 255),
+                        cv::Scalar(133, 255, 255, 255), tmp0);
 
             break;
         }
 
-        *product = tmp0;
-        cvReleaseImage(&tmp1);
-        cvReleaseImage(&hsvimage);
+        product = tmp0;
 
         return 0;
-}
-
-#if 0
-int
-imageFilter(IplImage *image, IplImage **product, int channel)
-{
-
-    IplImage *red;
-    IplImage *green;
-    IplImage *blue;
-    IplImage *tmp0;
-    IplImage *tmp1;
-
-    CvSize size;
-
-    if(image == nullptr || product == nullptr)
-        return 1;
-
-    /* make sure they passed a valid value into channel */
-    if(!(channel == FLT_RED || channel == FLT_GREEN || channel == FLT_BLUE))
-         return 1;
-
-    /* create all the temporary images to use */
-    size.width = image->width;
-    size.height = image->height;
-
-    red = cvCreateImage(size, 8, 1);
-    green = cvCreateImage(size, 8, 1);
-    blue = cvCreateImage(size, 8, 1);
-    tmp0 = cvCreateImage(size, 8, 1);
-    tmp1 = cvCreateImage(size, 8, 1);
-    cvSplit(image, blue, green, red, nullptr);
-
-    /* threshold */
-    cvThreshold(red, red, 50, 255,
-        ((channel == FLT_GREEN) ? CV_THRESH_BINARY:
-        CV_THRESH_BINARY_INV));
-    cvThreshold(green, green, 50, 255,
-        ((channel == FLT_GREEN) ? CV_THRESH_BINARY:
-        CV_THRESH_BINARY_INV));
-    cvThreshold(blue, blue, 50, 255,
-        ((channel == FLT_GREEN) ? CV_THRESH_BINARY:
-        CV_THRESH_BINARY_INV));
-
-    /*
-    cvAdaptiveThreshold(red, red, 255,
-        CV_ADAPTIVE_THRESH_MEAN_C,
-        ((channel == FLT_GREEN) ? CV_THRESH_BINARY:
-        CV_THRESH_BINARY_INV), 5, 5);
-    cvAdaptiveThreshold(green, green, 255,
-        CV_ADAPTIVE_THRESH_MEAN_C,
-        ((channel == FLT_GREEN) ? CV_THRESH_BINARY:
-        CV_THRESH_BINARY_INV), 5, 5);
-    cvAdaptiveThreshold(blue, blue, 255,
-        CV_ADAPTIVE_THRESH_MEAN_C,
-        ((channel == FLT_GREEN) ? CV_THRESH_BINARY:
-        CV_THRESH_BINARY_INV), 5, 5);
-    */
-
-    /* The three together to yeild a binary image containing only
-       the specified colour. tmp0 is the result.  */
-    cvAnd(red, green, tmp0, nullptr);
-    cvAnd(tmp0, blue, tmp1, nullptr);
-
-    /* we're done with most of this */
-    cvReleaseImage(&red);
-    cvReleaseImage(&green);
-    cvReleaseImage(&blue);
-
-    cvReleaseImage(&tmp0);
-    /* cvReleaseImage(&tmp1); */
-
-    *product = tmp1;
-
-    return 0;
-}
-#endif
-
-void saveRGBimage(IplImage* image, char* path) {
-    cvSaveImage(path, image, nullptr);
 }
 
 /* Takes calibration images of red, green, and blue boxes, and finds a
  * quadrilateral that represents the screen. If any of the calibration image
  * arguments are nullptr, they will be ignored.
  */
-Quad findScreenBox(IplImage* redimage, IplImage* greenimage, IplImage* blueimage) {
+Quad findScreenBox(cv::Mat& redimage, cv::Mat& greenimage, cv::Mat& blueimage,
+                   char procImages) {
     Quad quad;
 
-    IplImage* redfilter;
-    IplImage* greenfilter;
-    IplImage* bluefilter;
+    cv::Mat redfilter;
+    cv::Mat greenfilter;
+    cv::Mat bluefilter;
 
-    CvSize size;
+    CvSize size(redimage.size());
 
-    /* we should probably check that all three images coming in are the same
-     * size
-     */
-    size.width = redimage->width;
-    size.height = redimage->height;
-
-    IplImage* tmp0 = cvCreateImage(size, 8, 1);
+    cv::Mat tmp0(redimage.size(), CV_8UC1);
 
     // filter the images
-    if (redimage != nullptr) {
-        imageFilter(redimage, &redfilter, FLT_RED);
-        // cvDilate(redfilter, redfilter, nullptr, 2);
-        cvSaveImage("redCalib-out.png", redfilter, nullptr); // TODO
+    if (procImages & 1) {
+        imageFilter(redimage, redfilter, FLT_RED);
+#if 0
+        // Perform dilation
+        int dilationSize = 2;
+        cv::Mat element = getStructuringElement(cv::MORPH_RECT,
+                                                cv::Size(2 * dilationSize + 1,
+                                                         2 * dilationSize + 1),
+                                                cv::Point(dilationSize,
+                                                          dilationSize));
+        cv::dilate(redfilter, redfilter, element);
+#endif
+        cv::imwrite("redCalib-out.png", redfilter); // TODO
     }
-    if (greenimage != nullptr) {
-        imageFilter(greenimage, &greenfilter, FLT_GREEN);
-        // cvDilate(greenfilter, greenfilter, nullptr, 2);
-        cvSaveImage("greenCalib-out.png", greenfilter, nullptr); // TODO
+    if (procImages & (1 << 1)) {
+        imageFilter(greenimage, greenfilter, FLT_GREEN);
+#if 0
+        // Perform dilation
+        int dilationSize = 2;
+        cv::Mat element = getStructuringElement(cv::MORPH_RECT,
+                                                cv::Size(2 * dilationSize + 1,
+                                                         2 * dilationSize + 1),
+                                                cv::Point(dilationSize,
+                                                          dilationSize));
+        cv::dilate(greenfilter, greenfilter, element);
+#endif
+        cv::imwrite("greenCalib-out.png", greenfilter); // TODO
     }
-    if (blueimage != nullptr) {
-        imageFilter(blueimage, &bluefilter, FLT_BLUE);
-        // cvDilate(bluefilter, bluefilter, nullptr, 2);
-        cvSaveImage("blueCalib-out.png", bluefilter, nullptr); // TODO
+    if (procImages & (1 << 2)) {
+        imageFilter(blueimage, bluefilter, FLT_BLUE);
+#if 0
+        // Perform dilation
+        int dilationSize = 2;
+        cv::Mat element = getStructuringElement(cv::MORPH_RECT,
+                                                cv::Size(2 * dilationSize + 1,
+                                                         2 * dilationSize + 1),
+                                                cv::Point(dilationSize,
+                                                          dilationSize));
+        cv::dilate(bluefilter, bluefilter, element);
+#endif
+        cv::imwrite("blueCalib-out.png", bluefilter); // TODO
     }
 
     // and the three images together
-    std::memset(tmp0->imageData, 0xff, size.width * size.height);
-    if (redimage != nullptr) {
-        cvAnd(tmp0, redfilter, tmp0, nullptr);
+    std::memset(tmp0.data, 0xff, size.width * size.height);
+    if (procImages & 1) {
+        cv::bitwise_and(tmp0, redfilter, tmp0);
     }
-    if (greenimage != nullptr) {
-        cvAnd(tmp0, greenfilter, tmp0, nullptr);
+    if (procImages & (1 << 1)) {
+        cv::bitwise_and(tmp0, greenfilter, tmp0);
     }
-    if (blueimage != nullptr) {
-        cvAnd(tmp0, bluefilter, tmp0, nullptr);
+    if (procImages & (1 << 2)) {
+        cv::bitwise_and(tmp0, bluefilter, tmp0);
     }
 
-    cvDilate(tmp0, tmp0, nullptr, 2);
+    // Perform dilation
+    int dilationSize = 2;
+    cv::Mat element = getStructuringElement(cv::MORPH_RECT,
+                                            cv::Size(2 * dilationSize + 1,
+                                                     2 * dilationSize + 1),
+                                            cv::Point(dilationSize,
+                                                      dilationSize));
+    cv::dilate(tmp0, tmp0, element);
 
-    cvSaveImage("calibCombined-out.png", tmp0, nullptr); // TODO
+    cv::imwrite("calibCombined-out.png", tmp0); // TODO
 
     /* only the calibration quadrilateral should be in tmp0, now we need to find
      * its points
@@ -274,55 +218,36 @@ Quad findScreenBox(IplImage* redimage, IplImage* greenimage, IplImage* blueimage
     /* Find the contour. Note that we should check for the presence of other
      * contours that may be the test pattern.
      */
-    CvMemStorage* storage = cvCreateMemStorage(0);
-    CvContourScanner scanner = cvStartFindContours(tmp0, storage,
-                                                   sizeof(CvContour),
-                                                   CV_RETR_LIST,
-                                                   CV_CHAIN_APPROX_SIMPLE,
-                                                   CvPoint(0, 0));
+    std::vector<std::vector<cv::Point>> contours;
+    std::vector<cv::Vec4i> hierarchy;
+    std::vector<cv::Point> contour;
 
-    CvSeq* ctr;
-    while ((ctr = cvFindNextContour(scanner)) != nullptr) {
-        // approximate the polygon, and find the points
-        ctr = cvApproxPoly(ctr, sizeof(CvContour), storage, CV_POLY_APPROX_DP,
-                           10, 0);
+    cv::findContours(tmp0,
+                     contours,
+                     hierarchy,
+                     CV_RETR_LIST,
+                     CV_CHAIN_APPROX_SIMPLE);
 
-        if (ctr == nullptr || ctr->total != 4) {
-            continue;
+    for (unsigned int i = 0; i < contours.size(); i++) {
+        contour.clear();
+        cv::approxPolyDP(contours[i], contour, 10, true);
+
+        if (contour.size() == 4) {
+            // Extract the points
+            for (int i = 0; i < 4; i++) {
+                quad.point[i] = contour[i];
+            }
+            quad.validQuad = true;
+            break; // If it succeeds, we only want to do it once
         }
-
-        // extract the points
-        for (int i = 0; i < 4; i++) {
-            quad.point[i] = *CV_GET_SEQ_ELEM(CvPoint, ctr, i);
-        }
-        quad.validQuad = true;
-        break; // if it succeeds, we want to do it once
     }
-
-    // clean up from finding our contours
-    cvEndFindContours(&scanner);
-    cvClearMemStorage(storage);
-    cvReleaseMemStorage(&storage);
-
-    // free the temporary images
-    if (redimage != nullptr) {
-        cvReleaseImage(&redfilter);
-    }
-    if (greenimage != nullptr) {
-        cvReleaseImage(&greenfilter);
-    }
-    if (blueimage != nullptr) {
-        cvReleaseImage(&bluefilter);
-    }
-
-    cvReleaseImage(&tmp0);
 
     return quad;
 }
 
 /* Finds the x coordinate in the line with points p0 and p1 for
    a given y coordinate. */
-int interpolateX(CvPoint p0, CvPoint p1, int y) {
+int interpolateX(cv::Point p0, cv::Point p1, int y) {
     int num = (p1.y - p0.y);
     int denom = (p1.x - p0.x);
 
@@ -347,7 +272,7 @@ int interpolateX(CvPoint p0, CvPoint p1, int y) {
 /* Finds the y coordinate in the line with points p0 and p1 for a given x
  * coordinate
  */
-int interpolateY(CvPoint p0, CvPoint p1, int x) {
+int interpolateY(cv::Point p0, cv::Point p1, int x) {
     int b;
 
     int num = p1.y - p0.y;
@@ -365,7 +290,7 @@ int interpolateY(CvPoint p0, CvPoint p1, int x) {
 }
 
 // returns zero if point is inside quad, one if outside
-int quadCheckPoint(CvPoint point, Quad& quad) {
+int quadCheckPoint(cv::Point point, Quad& quad) {
     // should be below segment AB
     if (point.y < interpolateY(quad.point[0], quad.point[3], point.x)) {
         return 1;
@@ -400,7 +325,7 @@ int quadCheckPoint(CvPoint point, Quad& quad) {
  *   quadrilateral
  * * scale it to the size of the screen
  */
-std::list<CvPoint> findScreenLocation(std::list<CvPoint>& plist_in,
+std::list<cv::Point> findScreenLocation(std::list<cv::Point>& plist_in,
                                       Quad& quad,
                                       int screenwidth,
                                       int screenheight) {
@@ -414,7 +339,7 @@ std::list<CvPoint> findScreenLocation(std::list<CvPoint>& plist_in,
     int scrx;
     int scry;
 
-    std::list<CvPoint> plist_out;
+    std::list<cv::Point> plist_out;
 
     // Sort the calibration quadrilateral's points counter-clockwise
     sortquad(quad);
@@ -466,72 +391,47 @@ std::list<CvPoint> findScreenLocation(std::list<CvPoint>& plist_in,
  * of color specified by channel. Acceptable values are the same as used by
  * imageFilter(). Remember to plist_free(*plist_out) when you're done with it.
  */
-std::list<CvPoint> findImageLocation(IplImage* image, int channel) {
-    CvPoint point;
-    CvMemStorage* storage;
-    CvContourScanner scanner;
-    CvSeq* ctr;
-    CvRect rect;
-    IplImage* tmp1;
-    std::list<CvPoint> plist;
+std::list<cv::Point> findImageLocation(cv::Mat& image, int channel) {
+    cv::Mat tmp0;
+    std::list<cv::Point> plist;
 
-    if (image == nullptr) {
+    // filter the channel
+    if (imageFilter(image, tmp0, channel) != 0) {
         return plist;
     }
 
-    // filter the green channel
-    if (imageFilter(image, &tmp1, channel) != 0) {
-        return plist;
-    }
+    std::vector<std::vector<cv::Point>> contours;
+    std::vector<cv::Vec4i> hierarchy;
+    std::vector<cv::Point> contour;
 
     // We now have an image with only the channel we want
-    storage = cvCreateMemStorage(0);
-    scanner = cvStartFindContours(tmp1, storage, sizeof(CvContour),
-        CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE, cvPoint(0, 0));
+    cv::findContours(tmp0,
+                     contours,
+                     hierarchy,
+                     CV_RETR_LIST,
+                     CV_CHAIN_APPROX_SIMPLE);
 
-    while ((ctr = cvFindNextContour(scanner)) != nullptr) {
+    cv::Rect rect;
+    for (unsigned int i = 0; i < contours.size(); i++) {
+        contour.clear();
+        cv::approxPolyDP(contours[i], contour, 10, true);
+
         // find the center of the bounding rectangle of the contour
-        rect = cvBoundingRect(ctr, 0);
+        rect = cv::boundingRect(contour);
         if (rect.width > 4 && rect.height > 4) {
             plist.emplace_back(rect.x + rect.width / 2, rect.y + rect.height / 2);
         }
-
-        // find the first point in the contour
-        /*
-        point = *CV_GET_SEQ_ELEM(CvPoint, ctr, 0);
-        */
     }
 
-    cvEndFindContours(&scanner);
-    cvClearMemStorage(storage);
-    cvReleaseMemStorage(&storage);
-
-    cvReleaseImage(&tmp1);
-
     return plist;
-}
-
-/* Converts a raw 24bit RGB image into an OpenCV IplImage. Use
- * cvReleaseImage(IplImage**) to free.
- */
-IplImage* RGBtoIplImage(uint8_t* rgbimage, int width, int height) {
-    IplImage* image;
-
-    if(rgbimage == nullptr)
-        return nullptr;
-
-    image = cvCreateImage(CvSize(width, height), 8, 3);
-    std::memcpy(image->imageData, rgbimage, width * height * 3);
-
-    return image;
 }
 
 #if 0
 // Example usage
 int main() {
     struct quad_t* quad;
-    std::list<CvPoint> plist_raw;
-    std::list<CvPoint> plist_proc;
+    std::list<cv::Point> plist_raw;
+    std::list<cv::Point> plist_proc;
 
     IplImage* r_image;
     IplImage* g_image;

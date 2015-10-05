@@ -1,7 +1,14 @@
-*.data
-*.png
 *.dll
 *.o
-*.d
 *.res
 *.exe
+KinectBoard
+*.swp
+
+Makefile
+
+# Qt-generated files
+moc_*
+ui_*
+qrc_*
+*.pro.user

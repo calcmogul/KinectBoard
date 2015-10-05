@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>640</width>
+    <height>480</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>KinectBoard</string>
+  </property>
+  <property name="windowIcon">
+   <iconset resource="../KinectBoard.qrc">
+    <normaloff>:/images/OpenKinectON.ico</normaloff>:/images/OpenKinectON.ico</iconset>
+  </property>
+  <widget class="QWidget" name="centralWidget">
+   <layout class="QVBoxLayout" name="verticalLayout"/>
+  </widget>
+  <widget class="QMenuBar" name="menuBar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>640</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuControls">
+    <property name="title">
+     <string>Controls</string>
+    </property>
+    <addaction name="actionStart_Tracking"/>
+    <addaction name="actionStop_Tracking"/>
+    <addaction name="separator"/>
+    <addaction name="actionRecalibrate"/>
+   </widget>
+   <widget class="QMenu" name="menuPreferences">
+    <property name="title">
+     <string>Preferences</string>
+    </property>
+    <addaction name="actionChange_Board_Monitor"/>
+    <addaction name="separator"/>
+    <addaction name="actionDisplay_Video"/>
+    <addaction name="actionDisplay_Depth"/>
+   </widget>
+   <widget class="QMenu" name="menuHelp">
+    <property name="title">
+     <string>Help</string>
+    </property>
+    <addaction name="actionHelp"/>
+    <addaction name="separator"/>
+    <addaction name="actionAbout_KinectBoard"/>
+   </widget>
+   <addaction name="menuControls"/>
+   <addaction name="menuPreferences"/>
+   <addaction name="menuHelp"/>
+  </widget>
+  <action name="actionStart_Tracking">
+   <property name="text">
+    <string>Start Tracking</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+V</string>
+   </property>
+  </action>
+  <action name="actionStop_Tracking">
+   <property name="text">
+    <string>Stop Tracking</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+C</string>
+   </property>
+  </action>
+  <action name="actionRecalibrate">
+   <property name="text">
+    <string>Recalibrate</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+R</string>
+   </property>
+  </action>
+  <action name="actionChange_Board_Monitor">
+   <property name="text">
+    <string>Change Board Monitor</string>
+   </property>
+  </action>
+  <action name="actionHelp">
+   <property name="text">
+    <string>Help</string>
+   </property>
+  </action>
+  <action name="actionAbout_KinectBoard">
+   <property name="text">
+    <string>About KinectBoard</string>
+   </property>
+  </action>
+  <action name="actionDisplay_Video">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Display Video</string>
+   </property>
+  </action>
+  <action name="actionDisplay_Depth">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Display Depth</string>
+   </property>
+  </action>
+ </widget>
+ <layoutdefault spacing="6" margin="11"/>
+ <resources>
+  <include location="../KinectBoard.qrc"/>
+ </resources>
+ <connections/>
+</ui>

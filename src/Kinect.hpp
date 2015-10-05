@@ -13,13 +13,9 @@
 #ifndef KINECT_HPP
 #define KINECT_HPP
 
-#undef _WIN32_WINNT
-#define _WIN32_WINNT 0x0501
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-
 #include "ImageVars.hpp"
 #include "Processing.hpp"
+#include "ClientBase.hpp"
 #include "CKinect/Parse.hpp"
 #include "CKinect/NStream.hpp"
 #include <atomic>
@@ -32,36 +28,46 @@
 #include <vector>
 #include <cstdint>
 
+#include <QColor>
+#include <QRect>
+
 #include <libfreenect/libfreenect.h>
-#include <opencv2/core/core_c.h>
+#include <opencv2/core/core.hpp>
 
-#define WM_KINECT_VIDEOSTART  (WM_APP + 0x0001)
-#define WM_KINECT_VIDEOSTOP   (WM_APP + 0x0002)
-#define WM_KINECT_DEPTHSTART  (WM_APP + 0x0003)
-#define WM_KINECT_DEPTHSTOP   (WM_APP + 0x0004)
-
-class Kinect : public Processing {
+template <class T>
+class Kinect : public ClientBase<T> {
 public:
     Kinect();
     virtual ~Kinect();
 
-    // Starts video stream from Kinect
-    void startVideoStream();
+    // Starts video and depth streams from Kinect
+    void start();
 
-    // Starts depth stream from Kinect
-    void startDepthStream();
+    // Stops video and depth streams from Kinect
+    void stop();
 
-    // Stops video stream from Kinect
-    void stopVideoStream();
+    // Returns true if streaming is on
+    bool isStreaming() const;
 
-    // Stops depth stream from Kinect
-    void stopDepthStream();
+    // Saves most recently received image to a file
+    void saveCurrentImage(const std::string& fileName);
+
+    /* Copies the most recently received image into a secondary internal buffer
+     * and returns it to the user. After a call to this function, the new size
+     * should be retrieved since it may have changed. Do NOT access the buffer
+     * pointer returned while this function is executing.
+     */
+    uint8_t* getCurrentImage();
+
+    // Returns size of image currently in secondary buffer
+    unsigned int getCurrentWidth() const;
+    unsigned int getCurrentHeight() const;
 
     // Returns true if the RGB image stream is running
-    bool isVideoStreamRunning();
+    bool isVideoStreamRunning() const;
 
     // Returns true if the depth image stream is running
-    bool isDepthStreamRunning();
+    bool isDepthStreamRunning() const;
 
     // Set max frame rate of video stream
     void setVideoStreamFPS(unsigned int fps);
@@ -70,38 +76,10 @@ public:
     void setDepthStreamFPS(unsigned int fps);
 
     // Set window to which to send Kinect video stream messages
-    void registerVideoWindow(HWND window);
+    void registerVideoWindow();
 
     // Set window to which to send Kinect depth stream messages
-    void registerDepthWindow(HWND window);
-
-    // Stop Kinect video stream from displaying on the registered window
-    void unregisterVideoWindow();
-
-    // Stop Kinect depth stream from displaying on the registered window
-    void unregisterDepthWindow();
-
-    /* Returns currently registered video window
-     * (may return NULL if no window is registered)
-     */
-    const HWND getRegisteredVideoWindow();
-
-    /* Returns currently registered depth window
-     * (may return NULL if no window is registered)
-     */
-    const HWND getRegisteredDepthWindow();
-
-    /* Displays most recently received RGB image
-     * If it's called in response to the WM_PAINT message, pass in the window's
-     * device context received from BeginPaint()
-     */
-    void displayVideo(HWND window, int x, int y, HDC deviceContext = nullptr);
-
-    /* Displays most recently processed depth image
-    * If it's called in response to the WM_PAINT message, pass in the window's
-    * device context received from BeginPaint()
-    */
-    void displayDepth(HWND window, int x, int y, HDC deviceContext = nullptr);
+    void registerDepthWindow();
 
     // Saves most recently received RGB image to file
     bool saveVideo(const std::string& fileName);
@@ -137,7 +115,7 @@ public:
     /* Give class the region of the screen being tracked so the mouse is moved
      * on the correct monitor
      */
-    void setScreenRect(RECT screenRect);
+    void setScreenRect(const QRect& screenRect);
 
 protected:
     std::mutex m_vidImageMutex;
@@ -149,33 +127,30 @@ protected:
     std::mutex m_vidWindowMutex;
     std::mutex m_depthWindowMutex;
 
-    CvSize m_imageSize;
+    cv::Size m_imageSize;
 
     // Called when a new video image is received (swaps the image buffer)
-    static void newVideoFrame(NStream<Kinect>& streamObject, void* classObject);
+    static void newVideoFrame(void* classObject);
 
     // Called when a new depth image is received (swaps the image buffer)
-    static void newDepthFrame(NStream<Kinect>& streamObject, void* classObject);
+    static void newDepthFrame(void* classObject);
 
 private:
-    RECT m_screenRect;
-
-    HBITMAP m_vidImage = nullptr;
-    HBITMAP m_depthImage = nullptr;
-
-    HWND m_vidWindow = nullptr;
-    HWND m_depthWindow = nullptr;
+    QRect m_screenRect;
 
     std::vector<uint8_t> m_vidBuffer;
     std::vector<uint8_t> m_depthBuffer;
 
+    // If true, display m_vidBuffer. Otherwise, display m_depthBuffer
+    std::atomic<bool> m_displayVid{true};
+
     // OpenCV variables
-    IplImage* m_cvVidImage;
-    IplImage* m_cvDepthImage;
-    IplImage* m_cvBitmapDest;
+    cv::Mat m_cvVidImage;
+    cv::Mat m_cvDepthImage;
+    cv::Mat m_cvBitmapDest;
 
     // Calibration image storage (IplImage* is whole image)
-    std::vector<IplImage*> m_calibImages;
+    std::vector<cv::Mat> m_calibImages;
 
     // Stores which colored images to include in calibration
     char m_enabledColors = 0x00;
@@ -184,11 +159,8 @@ private:
     bool m_moveMouse = true;
     bool m_foundScreen = false;
     Quad m_quad;
-    std::list<CvPoint> m_plistRaw;
-    std::list<CvPoint> m_plistProc;
-
-    // Used for moving mouse cursor and clicking mouse buttons
-    INPUT m_input = {0};
+    std::list<cv::Point> m_plistRaw;
+    std::list<cv::Point> m_plistProc;
 
     // Used to control maximum frame rate of each image stream
     std::chrono::time_point<std::chrono::system_clock> m_lastVidFrameTime;
@@ -198,14 +170,7 @@ private:
     unsigned int m_vidFrameRate = 30;
     unsigned int m_depthFrameRate = 30;
 
-    // Displays the given image in the given window at the given coordinates
-    void display(HWND window, int x, int y, HBITMAP image, std::mutex& displayMutex, HDC deviceContext);
-
-    static char* RGBtoBITMAPdata(const char* imageData, unsigned int width,
-                                 unsigned int height);
-
     static double rawDepthToMeters(unsigned short depthValue);
-
 
     NStream<Kinect> rgb{640, 480, 3, &Kinect::startstream, &Kinect::rgb_stopstream, this};
     NStream<Kinect> depth{640, 480, 2, &Kinect::startstream, &Kinect::depth_stopstream, this};
@@ -223,5 +188,7 @@ private:
     int depth_stopstream();
     void threadmain();
 };
+
+#include "Kinect.inl"
 
 #endif // KINECT_HPP
