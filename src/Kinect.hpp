@@ -69,12 +69,6 @@ public:
     // Returns true if the depth image stream is running
     bool isDepthStreamRunning() const;
 
-    // Set max frame rate of video stream
-    void setVideoStreamFPS(unsigned int fps);
-
-    // Set max frame rate of depth image stream
-    void setDepthStreamFPS(unsigned int fps);
-
     // Set window to which to send Kinect video stream messages
     void registerVideoWindow();
 
@@ -162,14 +156,6 @@ private:
     std::list<cv::Point> m_plistRaw;
     std::list<cv::Point> m_plistProc;
 
-    // Used to control maximum frame rate of each image stream
-    std::chrono::time_point<std::chrono::system_clock> m_lastVidFrameTime;
-    std::chrono::time_point<std::chrono::system_clock> m_lastDepthFrameTime;
-
-    // Set frame rates to maximum the Kinect supports
-    unsigned int m_vidFrameRate = 30;
-    unsigned int m_depthFrameRate = 30;
-
     static double rawDepthToMeters(unsigned short depthValue);
 
     NStream<Kinect> rgb{640, 480, 3, &Kinect::startstream, &Kinect::rgb_stopstream, this};
@@ -180,6 +166,7 @@ private:
     std::atomic<bool> threadrunning{false};
     std::mutex threadrunning_mutex;
     std::condition_variable threadcond;
+    std::mutex threadcond_mutex;
 
     static void rgb_cb(freenect_device* dev, void* rgbBuf, uint32_t timestamp);
     static void depth_cb(freenect_device* dev, void* depthBuf, uint32_t timestamp);

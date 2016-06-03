@@ -46,6 +46,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
                                [] {},
                                [] {});
     m_ui->verticalLayout->addWidget(m_stream);
+
+    m_kinect->start();
 }
 
 void MainWindow::startTracking() {
@@ -101,5 +103,5 @@ void MainWindow::displayDepth() {
     m_ui->actionDisplay_Video->setChecked(false);
 
     // Stop video stream and switch to depth stream
-    m_kinect->registerVideoWindow();
+    m_kinect->registerDepthWindow();
 }

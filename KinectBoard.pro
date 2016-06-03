@@ -37,4 +37,4 @@ RESOURCES += \
 DISTFILES += \
     Resources.rc
 
-LIBS += -lfreenect -lopencv_core -lopencv_imgcodecs -lopencv_imgproc
+LIBS += -lfreenect -lusb-1.0 -lopencv_core -lopencv_imgcodecs -lopencv_imgproc

@@ -5,10 +5,9 @@
 KinectBoard
 *.swp
 
-Makefile
-
 # Qt-generated files
 moc_*
 ui_*
 qrc_*
+Makefile*
 *.pro.user

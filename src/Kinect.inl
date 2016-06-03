@@ -10,7 +10,6 @@
 #include <thread>
 #include <cstring>
 #include <cstdlib>
-#include <cstdio>
 
 #include <QCursor>
 #include <QImage>
@@ -127,10 +126,10 @@ void Kinect<T>::saveCurrentImage(const std::string& fileName) {
 template <class T>
 uint8_t* Kinect<T>::getCurrentImage() {
     if (m_displayVid) {
-        return &m_vidBuffer[0];
+        return m_cvVidImage.ptr<uint8_t>(0);
     }
     else {
-        return &m_depthBuffer[0];
+        return m_cvDepthImage.ptr<uint8_t>(0);
     }
 }
 
@@ -152,16 +151,6 @@ bool Kinect<T>::isVideoStreamRunning() const {
 template <class T>
 bool Kinect<T>::isDepthStreamRunning() const {
     return depth.state == NSTREAM_UP;
-}
-
-template <class T>
-void Kinect<T>::setVideoStreamFPS(unsigned int fps) {
-    m_vidFrameRate = fps;
-}
-
-template <class T>
-void Kinect<T>::setDepthStreamFPS(unsigned int fps) {
-    m_depthFrameRate = fps;
 }
 
 template <class T>
@@ -327,6 +316,8 @@ void Kinect<T>::newVideoFrame(void* classObject) {
     kntPtr->m_vidDisplayMutex.unlock();
 
     kntPtr->m_vidImageMutex.unlock();
+
+    kntPtr->callNewImage(nullptr, 0);
 }
 
 template <class T>
@@ -346,7 +337,8 @@ void Kinect<T>::newDepthFrame(void* classObject) {
 
         depth = Kinect::rawDepthToMeters(depthVal);
 
-        auto color = QColor::fromHsv(360 * depth / 5.f, 100, 100);
+        auto color = QColor::fromHsv(360 * depth / 5.f, 255, 255);
+        //auto color = QColor::fromHsv(36, 25, 25);
 
         // Assign values from 0 to 5 meters with a shade from black to white
         kntPtr->m_cvDepthImage.data[4 * index + 0] = color.blue();
@@ -375,6 +367,8 @@ void Kinect<T>::newDepthFrame(void* classObject) {
     kntPtr->m_depthDisplayMutex.unlock();
 
     kntPtr->m_depthImageMutex.unlock();
+
+    kntPtr->callNewImage(nullptr, 0);
 }
 
 template <class T>
@@ -494,7 +488,7 @@ int Kinect<T>::startstream(NStream<Kinect>& stream) {
         thread = std::thread(&Kinect::threadmain, this);
 
         {
-            std::unique_lock<std::mutex> lock(threadrunning_mutex);
+            std::unique_lock<std::mutex> lock(threadcond_mutex);
             threadcond.wait(lock);
         }
         if (!threadrunning) {
@@ -502,7 +496,6 @@ int Kinect<T>::startstream(NStream<Kinect>& stream) {
             threadrunning_mutex.unlock();
             return 1;
         }
-
     }
     threadrunning_mutex.unlock();
 
@@ -582,7 +575,7 @@ void Kinect<T>::threadmain() {
     /* initialize libfreenect */
     error = freenect_init(&f_ctx, nullptr);
     if (error != 0) {
-        fprintf(stderr, "failed to initialize libfreenect\n");
+        std::cerr << "failed to initialize libfreenect\n";
         threadrunning = false;
         threadcond.notify_all();
         return;
@@ -590,7 +583,7 @@ void Kinect<T>::threadmain() {
 
     ndevs = freenect_num_devices(f_ctx);
     if (ndevs != 1) {
-        fprintf(stderr, "more/less than one kinect detected\n");
+        std::cerr << "more/less than one kinect detected\n";
         freenect_shutdown(f_ctx);
         threadrunning = false;
         threadcond.notify_all();
@@ -599,7 +592,7 @@ void Kinect<T>::threadmain() {
 
     error = freenect_open_device(f_ctx, &f_dev, 0);
     if (error != 0) {
-        fprintf(stderr, "failed to open kinect device\n");
+        std::cerr << "failed to open kinect device\n";
         freenect_shutdown(f_ctx);
         threadrunning = false;
         threadcond.notify_all();
@@ -614,7 +607,7 @@ void Kinect<T>::threadmain() {
                                            FREENECT_RESOLUTION_MEDIUM,
                                            FREENECT_VIDEO_RGB));
     if (error != 0) {
-        fprintf(stderr, "failed to set video mode\n");
+        std::cerr << "failed to set video mode\n";
         freenect_close_device(f_dev);
         freenect_shutdown(f_ctx);
         threadrunning = false;
@@ -626,7 +619,7 @@ void Kinect<T>::threadmain() {
                                            FREENECT_RESOLUTION_MEDIUM,
                                            FREENECT_DEPTH_11BIT));
     if (error != 0) {
-        fprintf(stderr, "failed to set depth mode\n");
+        std::cerr << "failed to set depth mode\n";
         freenect_close_device(f_dev);
         freenect_shutdown(f_ctx);
         threadrunning = false;
@@ -642,7 +635,7 @@ void Kinect<T>::threadmain() {
 
     error = freenect_set_video_buffer(f_dev, rgb.buf1.get());
     if (error != 0) {
-        fprintf(stderr, "failed to set video buffer\n");
+        std::cerr << "failed to set video buffer\n";
         freenect_close_device(f_dev);
         freenect_shutdown(f_ctx);
         threadrunning = false;
@@ -658,7 +651,7 @@ void Kinect<T>::threadmain() {
 
     error = freenect_set_depth_buffer(f_dev, depth.buf1.get());
     if (error != 0) {
-        fprintf(stderr, "failed to set depth buffer\n");
+        std::cerr << "failed to set depth buffer\n";
         freenect_close_device(f_dev);
         freenect_shutdown(f_ctx);
         threadrunning = false;
@@ -668,7 +661,7 @@ void Kinect<T>::threadmain() {
 
     error = freenect_start_video(f_dev);
     if (error != 0) {
-        fprintf(stderr, "failed to start video stream\n");
+        std::cerr << "failed to start video stream\n";
         freenect_close_device(f_dev);
         freenect_shutdown(f_ctx);
         threadrunning = false;
@@ -678,7 +671,7 @@ void Kinect<T>::threadmain() {
 
     error = freenect_start_depth(f_dev);
     if (error != 0) {
-        fprintf(stderr, "failed to start depth stream\n");
+        std::cerr << "failed to start depth stream\n";
         freenect_close_device(f_dev);
         freenect_shutdown(f_ctx);
         threadrunning = false;

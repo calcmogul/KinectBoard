@@ -51,7 +51,7 @@ protected:
     T* m_object = nullptr;
 
     // Called if the new image loaded successfully
-    void (T::*m_newImageCbk)(uint8_t* buf, int bufsize);
+    void (T::*m_newImageCbk)(uint8_t* buf, int bufsize) = nullptr;
 
     // Called when client thread starts
     void (T::*m_startCbk)() = nullptr;
