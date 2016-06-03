@@ -6,7 +6,9 @@ TARGET = KinectBoard
 TEMPLATE = app
 CONFIG += c++14
 
-SOURCES +=\
+CONFIG += debug_and_release
+
+SOURCES += \
     src/MainWindow.cpp \
     src/Main.cpp \
     src/ImageVars.cpp \
@@ -15,7 +17,7 @@ SOURCES +=\
     src/CKinect/Parse.cpp \
     src/VideoStream.cpp
 
-HEADERS  += \
+HEADERS += \
     src/MainWindow.hpp \
     src/ImageVars.hpp \
     src/Kinect.hpp \
@@ -28,7 +30,7 @@ HEADERS  += \
     src/ClientBase.hpp \
     src/ClientBase.inl
 
-FORMS    += \
+FORMS += \
     src/MainWindow.ui
 
 RESOURCES += \
