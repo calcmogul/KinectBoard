@@ -1,8 +1,6 @@
 //=============================================================================
-//File Name: Kinect.hpp
-//Description: Manages interface with a Microsoft Kinect connected to the USB
-//             port of the computer
-//Author: Tyler Veness
+// Description: Manages interface with a Microsoft Kinect connected to the USB
+//              port of the computer
 //=============================================================================
 
 /*
@@ -18,6 +16,8 @@
 #include "ClientBase.hpp"
 #include "CKinect/Parse.hpp"
 #include "CKinect/NStream.hpp"
+
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -31,13 +31,14 @@
 #include <QColor>
 #include <QRect>
 
-#include <libfreenect/libfreenect.h>
+#include <libfreenect/libfreenect.hpp>
 #include <opencv2/core/core.hpp>
 
-template <class T>
-class Kinect : public ClientBase<T> {
+#include "VideoStream.hpp"
+
+class Kinect : public ClientBase<VideoStream>, public Freenect::FreenectDevice {
 public:
-    Kinect();
+    Kinect(freenect_context* context, int index);
     virtual ~Kinect();
 
     // Starts video and depth streams from Kinect
@@ -60,8 +61,8 @@ public:
     uint8_t* getCurrentImage();
 
     // Returns size of image currently in secondary buffer
-    unsigned int getCurrentWidth() const;
-    unsigned int getCurrentHeight() const;
+    uint32_t getCurrentWidth() const;
+    uint32_t getCurrentHeight() const;
 
     // Returns true if the RGB image stream is running
     bool isVideoStreamRunning() const;
@@ -124,16 +125,13 @@ protected:
     cv::Size m_imageSize;
 
     // Called when a new video image is received (swaps the image buffer)
-    static void newVideoFrame(void* classObject);
+    void newVideoFrame();
 
     // Called when a new depth image is received (swaps the image buffer)
-    static void newDepthFrame(void* classObject);
+    void newDepthFrame();
 
 private:
     QRect m_screenRect;
-
-    std::vector<uint8_t> m_vidBuffer;
-    std::vector<uint8_t> m_depthBuffer;
 
     // If true, display m_vidBuffer. Otherwise, display m_depthBuffer
     std::atomic<bool> m_displayVid{true};
@@ -156,26 +154,22 @@ private:
     std::list<cv::Point> m_plistRaw;
     std::list<cv::Point> m_plistProc;
 
-    static double rawDepthToMeters(unsigned short depthValue);
+    static double rawDepthToMeters(uint16_t depthValue);
 
-    NStream<Kinect> rgb{640, 480, 3, &Kinect::startstream, &Kinect::rgb_stopstream, this};
-    NStream<Kinect> depth{640, 480, 2, &Kinect::startstream, &Kinect::depth_stopstream, this};
+    static constexpr uint32_t m_width = 640;
+    static constexpr uint32_t m_height = 480;
 
-    std::thread thread;
+    std::array<uint8_t, m_width * m_height * 3> m_vidBuf;
+    bool m_videoRunning = false;
 
-    std::atomic<bool> threadrunning{false};
-    std::mutex threadrunning_mutex;
-    std::condition_variable threadcond;
-    std::mutex threadcond_mutex;
+    std::array<uint8_t, m_width * m_height * 2> m_depthBuf;
+    bool m_depthRunning = false;
+    static std::array<double, 2048> m_depthLUT;
 
-    static void rgb_cb(freenect_device* dev, void* rgbBuf, uint32_t timestamp);
-    static void depth_cb(freenect_device* dev, void* depthBuf, uint32_t timestamp);
-    int startstream(NStream<Kinect>& stream);
-    int rgb_stopstream();
-    int depth_stopstream();
-    void threadmain();
+    static Freenect::Freenect m_freenectInst;
+
+    void VideoCallback(void* vidBuf, uint32_t timestamp) override;
+    void DepthCallback(void* depthBuf, uint32_t timestamp) override;
 };
-
-#include "Kinect.inl"
 
 #endif // KINECT_HPP

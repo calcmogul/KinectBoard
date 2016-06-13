@@ -29,6 +29,7 @@ class MainWindow : public QMainWindow {
 
 public:
     explicit MainWindow(QWidget* parent = nullptr);
+    virtual ~MainWindow();
 
 private slots:
     void startTracking();
@@ -39,7 +40,8 @@ private slots:
 
 private:
     std::unique_ptr<Ui::MainWindow> m_ui;
-    Kinect<VideoStream>* m_kinect;
+    freenect_context* m_context = nullptr;
+    Kinect* m_kinect;
     VideoStream* m_stream;
 
     // Used for choosing on which monitor to draw test image

@@ -12,6 +12,7 @@ SOURCES += \
     src/MainWindow.cpp \
     src/Main.cpp \
     src/ImageVars.cpp \
+    src/Kinect.cpp \
     src/TestScreen.cpp \
     src/CKinect/NStream.inl \
     src/CKinect/Parse.cpp \
@@ -21,7 +22,6 @@ HEADERS += \
     src/MainWindow.hpp \
     src/ImageVars.hpp \
     src/Kinect.hpp \
-    src/Kinect.inl \
     src/Processing.hpp \
     src/TestScreen.hpp \
     src/CKinect/NStream.hpp \
@@ -38,5 +38,8 @@ RESOURCES += \
 
 DISTFILES += \
     Resources.rc
+
+INCLUDEPATH = /usr/include/libusb-1.0
+LIBPATH = /usr/lib/fakenect
 
 LIBS += -lfreenect -lusb-1.0 -lopencv_core -lopencv_imgcodecs -lopencv_imgproc

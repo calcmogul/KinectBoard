@@ -37,7 +37,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
                 }
             });
 
-    m_kinect = new Kinect<VideoStream>();
+    freenect_init(&m_context, nullptr);
+
+    m_kinect = new Kinect(m_context, 0);
     m_stream = new VideoStream(m_kinect,
                                this,
                                640,
@@ -48,6 +50,10 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     m_ui->verticalLayout->addWidget(m_stream);
 
     m_kinect->start();
+}
+
+MainWindow::~MainWindow() {
+    freenect_shutdown(m_context);
 }
 
 void MainWindow::startTracking() {
